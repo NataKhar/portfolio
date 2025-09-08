@@ -1,6 +1,6 @@
 ---
 title: "How your song becomes a hit"
-author: "Group 4 - Caterina Bonomi, Nataliya Kharitonova, Ines Lindtner, Lucia Raffaelli"
+author: "Nataliya Kharitonova"
 date: "2023-02-07"
 output: html_document
 ---
@@ -1195,5 +1195,6 @@ Among the weakest features there are also some individual differences. For examp
 Coming to our conclusion, we should remember our main questions that were stated in this work. We tried to examine what is standing behind the real chart hits and whether there are differences among various countries: Australia, Italy and the USA.
  
 To sum up, our results state that there is a specific type of song that is more likely to achieve the top 10 ranking and that, overall, this type stays the same among different charts throughout the whole world. More danceable and loud songs, but not too energetic, are preferable and will have the greater chance of being liked by the audience. However, every country has its own small individual patterns, that make a track so special for a concrete market. For example, Italian top songs are more energetic in terms of their pace, while for Australian hits danceability is more common that for others.   
+
 
 
