@@ -1,6 +1,6 @@
 # Data Analytics & Marketing Portfolio
 
-Welcome! My nam's Nataliya Kharitonova and I'm a **Data Analytics & Marketing Specialist** with **international education (Austria, France)** and hands-on experience in **research-driven projects**.  
+Welcome! My name's Nataliya Kharitonova and I'm a **Data Analytics & Marketing Specialist** with **international education (Austria, France)** and hands-on experience in **research-driven projects**.  
 I use **Python, SQL, R, Power BI, and data storytelling** to turn data into actionable business insights.  
 
 ---
