@@ -56,7 +56,14 @@ The research followed a **semantic analysis + regression modeling** approach:
      - Political CSA: 303 tweets  
 
 5. **Qualitative Validation**  
-   - Word clouds generated to visualize most frequent words per category  
+   - Word clouds generated to visualize most frequent words per category
+ <details>
+<summary>Click to view visual proof</summary>
+
+![Visual Proof](./screenshots/visual_proof.png)
+
+</details>
+
 </details>
 
 ---
