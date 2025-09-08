@@ -69,24 +69,72 @@ The research followed a **semantic analysis + regression modeling** approach:
 ---
 
 ## Results & Visualizations
+
 <details>
 <summary>Click to expand</summary>
 
-- **Engagement Analysis:**  
-  - Social CSA → higher positive engagement  
-  - Political CSA → more mixed/controversial reactions  
+### 1️⃣ Engagement Overview
 
-**Visualizations:**  
+- **Dependent variable:** `Engagement` — the sum of likes, replies, quotes, and shares.  
+- Distribution is highly right-skewed → most tweets have low engagement.  
+- Scatterplots showed:  
+  - Most data points belong to the group **without CSA**.  
+  - Each group exhibits its **own engagement pattern**: higher engagement corresponds to fewer tweets.  
 
-![Engagement Comparison](./screenshots/engagement_comparison.png)  
-*Figure 1: Average engagement by CSA type*  
+**Visualization:**  
 
-![Word Cloud](./screenshots/wordcloud_social.png)  
-*Figure 2: Most frequent words in Social CSA tweets*  
+![Engagement Distribution](./screenshots/engagement_distribution.png)  
+*Figure 1: Distribution of total engagement per tweet*
 
-![Word Cloud](./screenshots/wordcloud_political.png)  
-*Figure 3: Most frequent words in Political CSA tweets*  
+---
+
+### 2️⃣ Violin & Boxplots
+
+- **Violin plots with embedded boxplots** were created for two main groups:  
+  - Social CSA  
+  - Political CSA  
+
+**Key observations:**  
+- Data distribution differs between the two groups.  
+- Tweets with political context show **higher density at large engagement values**.  
+- Median: political CSA < social CSA  
+- Range: political CSA > social CSA  
+
+**Visualization:**  
+
+![Violin Plot](./screenshots/violin_plot.png)  
+*Figure 2: Violin plot of engagement for social vs political CSA*
+
+---
+
+### 3️⃣ Statistical Testing
+
+- **Variance check:** unequal → used **non-parametric test**  
+- **Kruskal-Wallis test:** p-value = 0.005075 < 0.05 → statistically significant differences between groups
+
+---
+
+### 4️⃣ Regression Analysis
+
+- **Data characteristics:** count data with strong over-dispersion → ordinary linear models are not suitable  
+- **Chosen model:** Negative Binomial (NB) Regression  
+
+**Over-dispersion check:**  
+- Variance / Mean = 179,379 → much greater than 1 → NB regression justified  
+
+**Model formula:** Engagement ~ CSA context + Time controls (year, month, time of day)  
+
+**NB regression results (summary):**  
+![NB regression results](./screenshots/regression.png) 
+
+**Differences by engagement type:**  
+![engagement](./screenshots/engagement.png) 
+
+- **Conclusion:** Coefficients differ in magnitude and direction → groups significantly differ in their impact on engagement.  
+- **Model evaluation:** AIC = 117,792, BIC = 1,178,118 → best among four tested models
+
 </details>
+
 
 ---
 
