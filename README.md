@@ -78,7 +78,6 @@ Courses: SPSS, Research Seminars, Qualitative Research
 ---
   
 ## My Projects
-
 ## My Projects
 
 - [Social vs Political Brand Activism](./project_social_media/README.md)  
@@ -96,7 +95,5 @@ Analysis of student academic performance to identify key factors influencing gra
   - **Languages/Tools:** Python, Pandas, Scikit-learn, Matplotlib, Seaborn  
   - **Methods:** Clustering (K-Means), Regression (Linear, LASSO, Random Forest), Classification (Logistic Regression, Decision Tree, Random Forest)  
   - **Data:** Student Performance Dataset (Portuguese schools, Mathematics & Portuguese subjects, UCI ML Repository)  
-
-
 
 </details>
