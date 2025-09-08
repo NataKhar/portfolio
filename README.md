@@ -100,6 +100,7 @@ Analysis of student academic performance to identify key factors influencing gra
 - **Methods:** Clustering (K-Means), Regression (Linear, LASSO, Random Forest), Classification (Logistic Regression, Decision Tree, Random Forest)  
 - **Data:** Student Performance Dataset (Portuguese schools, Mathematics & Portuguese subjects, UCI ML Repository)  
 
+</details>
 <details>
 <summary><a href="./project_bias/README.md">Bias Mitigation in Recommender Systems</a></summary>
 
