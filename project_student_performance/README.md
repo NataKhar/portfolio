@@ -1,5 +1,5 @@
 # Student Performance Analysis
-[View Student Performance Project Code](portfolio/project_student_performance/student_performance_code.ipynb)
+[View Student Performance Project Code](/student_performance_code.ipynb)
 
 
 - **Languages:** Python 
