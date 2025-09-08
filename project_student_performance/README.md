@@ -1,5 +1,6 @@
 # Student Performance Analysis
-[View Student Performance Project Code](https://github.com/username/portfolio/blob/main/project_student_performance/student%20performance%20code.ipynb)
+[View Student Performance Project Code](portfolio/project_student_performance/student_performance_code.ipynb)
+
 
 - **Languages:** Python 
 - **Libraries/Methods:** Pandas, Scikit-learn, Random Forest, Decision Trees, KNN, Regression Analysis, Clustering, Data Visualization  
