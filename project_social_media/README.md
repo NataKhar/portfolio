@@ -138,12 +138,60 @@ The research followed a **semantic analysis + regression modeling** approach:
 
 ---
 
-## Key Takeaways
+## Discussion + Key Takeaways
 <details>
 <summary>Click to expand</summary>
 
-- Social CSA messages generate more **positive engagement** than political CSA  
-- Machine learning + semantic analysis is effective for **large-scale text classification**  
-- Findings can guide marketers in **optimizing brand messaging** on social media  
+### 1️⃣ Research Insights
+
+- **Corporate Social Advocacy (CSA)** — brands publicly taking a stance on controversial topics like racism or inclusivity — is increasingly demanded by audiences (Moorman 2020; Sandler 2020).  
+- While CSA has been studied broadly, **little is known about how different types of CSA (social vs political) impact social media engagement**.  
+- Analysis of ~103,000 tweets from 87 brands revealed **significant differences in audience engagement**:  
+  - **Political CSA** → higher engagement (quotes, replies, retweets)  
+  - **Social CSA** → generally negative impact on engagement metrics, except for a slight positive effect on retweets  
+- **No CSA content** often shows strong positive engagement across metrics, except for quotes where political CSA dominates  
+
+---
+
+### 2️⃣ Hypotheses Tested
+
+1. **H1:** Engagement differs depending on the type of CSA (political or social)  
+   - ✅ Supported: NB regression shows significant differences (p < 0.05)  
+2. **H2:** Social CSA receives more engagement than political CSA  
+   - ❌ Rejected: Social CSA had a negative effect, while political CSA significantly increased user activity  
+
+---
+
+### 3️⃣ Detailed Patterns
+
+- Political CSA tweets drive **more quotes and replies**  
+- Social CSA tweets generate **more retweets**, but lower engagement elsewhere  
+- Regression models per engagement metric confirmed:  
+  - **Social CSA** → strongest negative effect on likes  
+  - **Political CSA** → strongest positive effect on quotes and retweets  
+  - **No CSA** → strong positive impact overall, except for quotes  
+
+**Visualization examples:**   
+
+![Relative Engagement](./screenshots/engagement_relative.png)  
+*Figure: Engagement metrics in relative frequency for accurate comparison*
+
+---
+
+### 4️⃣ Managerial Implications
+
+1. **Engagement Matters:**  
+   - Prioritize **political CSA topics** in social media strategy to maximize engagement.  
+   - Monitor the **quality and sentiment** of engagement to avoid negative brand impact.  
+
+2. **Strategic Consideration:**  
+   - Carefully evaluate **social CSA topics**, as they may result in negative engagement.  
+   - Ensure alignment with brand values and prepare mitigation strategies for potential backlash.  
+
+3. **The Reputation Compass:**  
+   - Predict audience reactions using historical data.  
+   - Prepare contingency plans for political CSA content, as higher engagement may still involve negative feedback.  
+
+</details>
 </details>
 
