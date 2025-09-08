@@ -1,0 +1,1199 @@
+---
+title: "How your song becomes a hit"
+author: "Group 4 - Caterina Bonomi, Nataliya Kharitonova, Ines Lindtner, Lucia Raffaelli"
+date: "2023-02-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r LibraryAndData, echo=FALSE, include=FALSE}
+
+library(caret)
+library(ggplot2)
+library(psych)
+library(dplyr)
+library(readr)
+library(fixest)
+library(pROC)
+library(psych)
+library(boot)
+library(xgboost)
+library(data.table)
+library(tidyr)
+library(CausalImpact)
+library(tidyverse)
+library(MatchIt)
+library(lmtest)
+library(sandwich)
+library(stargazer)
+library(MASS)
+library(reghelper)
+library(DescTools)
+library(fmsb)
+
+
+#setwd("C:/Users/lindt/OneDrive/Dokumente/Uni/Data based storytelling")
+chartdata <- fread("spotify_charts_top_countries.csv.gz")
+
+
+
+```
+
+
+# Let's start with the basics!
+
+With the advent of new technologies – especially the emergence of digital platforms – the music industry has been evolving and changing some of its structural features. Artists can now reach incredible success through the use of algorithmically made playlists on Spotify instead of having to promote an entire album through record labels. Clearly the dynamics have changed, and they keep changing, which makes this industry a very interesting landscape to analyze. 
+
+However, something that hasn’t undergone particular changes is the use of charts to determine the most popular songs in different countries. Are charts really telling us which are the hit songs and what makes them so special? How does a song enter the top 10 in a chart? Why do songs have different survival rates?
+
+This article aims at investigating which songs made it to the top of the charts over the years and what was their survival rate over time. We, as a team of marketing students – with a passion for music – decided to test this assumption with data of the top 200 charts from 2015-2021 gathered in the following 8 countries:
+
+
+
+```{r cleanDataAndCountries, echo=FALSE}
+
+#calculating weighted rank
+chartdata$wgt_rank <- 1/chartdata$rank
+
+#removing possible duplicates
+chartdata <- distinct(chartdata, region, day, spotify_trackID, .keep_all = TRUE)
+
+#order dataset to present all the ranks 1-200 increasing of each day (days in order as well)
+chartdata <- chartdata[
+  with(chartdata, order(chartdata$day, chartdata$rank)),
+]
+
+
+
+##cleaning the data (eg loudness has a negative scale; we are going to norm all the features by calculating all values/max value)
+
+#(to get rid of the minus)
+chartdata$loudness <- chartdata$loudness + 43.988
+
+loudness_max <- max(chartdata$loudness)
+chartdata$loudness <- chartdata$loudness/loudness_max
+
+acousticness_max <- max(chartdata$acousticness)
+chartdata$acousticness <- chartdata$acousticness/acousticness_max
+
+danceability_max <- max(chartdata$danceability)
+chartdata$danceability <- chartdata$danceability/danceability_max
+
+energy_max <- max(chartdata$energy)
+chartdata$energy <- chartdata$energy/energy_max
+
+instrumentalness_max <- max(chartdata$instrumentalness)
+chartdata$instrumentalness <- chartdata$instrumentalness/instrumentalness_max
+
+liveness_max <- max(chartdata$liveness)
+chartdata$liveness <- chartdata$liveness/liveness_max
+
+speechiness_max <- max(chartdata$speechiness)
+chartdata$speechiness <- chartdata$speechiness/speechiness_max
+
+tempo_max <- max(chartdata$tempo)
+chartdata$tempo <- chartdata$tempo/tempo_max
+
+valence_max <- max(chartdata$valence)
+chartdata$valence <- chartdata$valence/valence_max
+
+
+unique(chartdata$region)
+
+```
+
+
+```{r CountryDatasets, echo=FALSE, include=FALSE}
+
+#Total country files
+
+#au
+chart_au_total <- chartdata %>%
+  dplyr::filter(region=="au")
+
+
+chart_au <- chartdata %>%
+  dplyr::filter(region=="au") %>%
+  dplyr::group_by(spotify_trackID) %>%
+  dplyr::summarise(count = n(),
+                   artistName = dplyr::first(artistName),
+                   trackName = dplyr::first(trackName),
+                   wgt_rank = sum(wgt_rank),
+                   trackPopularity = mean(trackPopularity),
+                   acousticness = mean(acousticness),                   
+                   danceability = mean(danceability),
+                   energy = mean(energy),
+                   instrumentalness = mean(instrumentalness),
+                   liveness = mean(liveness),
+                   loudness = mean(loudness),
+                   speechiness = mean(speechiness),
+                   tempo = mean(tempo),
+                   valence = mean(valence),
+                   time_signature= mean(time_signature),
+                   mode = mean(mode),
+                   key = mean(key),
+                   explicit = mean(explicit),
+                   duration = mean(duration_ms),
+                   releaseDate = dplyr::first(releaseDate),
+                   primary_artistName = dplyr::first(primary_artistName),
+                   streams = sum(streams),
+  ) %>%
+  as.data.frame()
+
+#add release year
+chart_au$year <- substr(chart_au$releaseDate,1,4)
+#sort dataset
+chart_au <- chart_au[order(-chart_au$wgt_rank),]
+#Top10 grouping
+chart_au$TopTen <- c(rep(1,10),rep(0, (nrow(chart_au)-10)))
+#Top50 grouping
+chart_au$TopFifty <- c(rep(1,50),rep(0, (nrow(chart_au)-50)))
+
+
+#release year 2015 - now
+chart_au_year<- subset(chart_au, chart_au$year >= 2015)
+
+
+
+#it
+chart_it_total <- chartdata %>%
+  dplyr::filter(region=="it")
+
+
+chart_it <- chartdata %>%
+  dplyr::filter(region=="it") %>%
+  dplyr::group_by(spotify_trackID) %>%
+  dplyr::summarise(count = n(),
+                   artistName = dplyr::first(artistName),
+                   trackName = dplyr::first(trackName),
+                   wgt_rank = sum(wgt_rank),
+                   trackPopularity = mean(trackPopularity),
+                   acousticness = mean(acousticness),                   
+                   danceability = mean(danceability),
+                   energy = mean(energy),
+                   instrumentalness = mean(instrumentalness),
+                   liveness = mean(liveness),
+                   loudness = mean(loudness),
+                   speechiness = mean(speechiness),
+                   tempo = mean(tempo),
+                   valence = mean(valence),
+                   time_signature= mean(time_signature),
+                   mode = mean(mode),
+                   key = mean(key),
+                   explicit = mean(explicit),
+                   duration = mean(duration_ms),
+                   releaseDate = dplyr::first(releaseDate),
+                   primary_artistName = dplyr::first(primary_artistName),
+                   streams = sum(streams),
+  ) %>%
+  as.data.frame()
+
+
+#add release year
+chart_it$year <- substr(chart_it$releaseDate,1,4)
+#sort dataset
+chart_it <- chart_it[order(-chart_it$wgt_rank),]
+#Top10 grouping
+chart_it$TopTen <- c(rep(1,10),rep(0, (nrow(chart_it)-10)))
+#Top50 grouping
+chart_it$TopFifty <- c(rep(1,50),rep(0, (nrow(chart_it)-50)))
+
+#release year 2015 - now
+chart_it_year<- subset(chart_it, chart_it$year >= 2015)
+
+
+
+
+#us
+chart_us_total <- chartdata %>%
+  dplyr::filter(region=="us")
+
+
+chart_us <- chartdata %>%
+  dplyr::filter(region=="us") %>%
+  dplyr::group_by(spotify_trackID) %>%
+  dplyr::summarise(count = n(),
+                   artistName = dplyr::first(artistName),
+                   trackName = dplyr::first(trackName),
+                   wgt_rank = sum(wgt_rank),
+                   trackPopularity = mean(trackPopularity),
+                   acousticness = mean(acousticness),                   
+                   danceability = mean(danceability),
+                   energy = mean(energy),
+                   instrumentalness = mean(instrumentalness),
+                   liveness = mean(liveness),
+                   loudness = mean(loudness),
+                   speechiness = mean(speechiness),
+                   tempo = mean(tempo),
+                   valence = mean(valence),
+                   time_signature= mean(time_signature),
+                   mode = mean(mode),
+                   key = mean(key),
+                   explicit = mean(explicit),
+                   duration = mean(duration_ms),
+                   releaseDate = dplyr::first(releaseDate),
+                   primary_artistName = dplyr::first(primary_artistName),
+                   streams = sum(streams),
+  ) %>%
+  as.data.frame()
+
+
+#add release year
+chart_us$year <- substr(chart_us$releaseDate,1,4)
+#sort dataset
+chart_us <- chart_us[order(-chart_us$wgt_rank),]
+#Top10 grouping
+chart_us$TopTen <- c(rep(1,10),rep(0, (nrow(chart_us)-10)))
+#Top50 grouping
+chart_us$TopFifty <- c(rep(1,50),rep(0, (nrow(chart_us)-50)))
+
+#release year 2015 - now
+chart_us_year<- subset(chart_us, chart_us$year >= 2015)
+
+
+```
+
+For simplicity reasons, we decided to focus on data chosen from 3 out of the 8 countries - Australia, Italy, and the US – in the attempt of making a comprehensive analysis considering that these states are from completely different parts of the world. 
+
+All the songs present certain features, which can be divided into sound features (9) and technical features (4). Analyzing these variables allows us to get a feeling for the song and compare the scores of hit songs to other less successful songs. Here are the available features listed: 
+
+
+```{r features, echo=FALSE}
+features <- data.frame(c(rep("Sound features",9),rep("Technical features",4)),colnames(chart_au[,c(7:19)]))
+colnames(features) <- c("type", "feature")
+features
+
+
+```
+
+
+The first section of the article will present the different countries analyzed individually, whilst the second part will show a comparison among them. 
+
+
+
+# The charts in the countries
+
+## Australia
+
+We started our analysis by looking at the six most popular songs in Australia between 2015-2021, with their respective artist names, streams, and weighted ranking position. We calculated a weighted ranking (wgt_rank) in order to be able to compare songs which have stayed in the top charts for short periods of time to songs that have stayed longer but in lower positions. 
+
+```{r auStart, echo=FALSE}
+
+
+head(chart_au[,c("trackName", "artistName","wgt_rank")])
+
+
+```
+
+
+After showing the most popular songs in Australia during this time frame, we decided to investigate what made these songs so successful. For this purpose, we chose to run a logarithmic regression, which only takes into consideration songs that were released after 2015. We made this choice because we were provided with data on charts starting from 2015, therefore considering songs that were released before that year would mean not analyzing the entire lifetime of the songs, hence making it impossible to fully estimate the true popularity that these songs had. 
+
+```{r lin_au1, echo=FALSE}
+
+summary(lm(log(wgt_rank*100+1)~log(danceability*100+1)+
+             log(speechiness*100+1)+log(acousticness*100+1)+
+             log(energy*100+1)+log(instrumentalness*100+1)+
+             log(liveness*100+1)+log(loudness*100+1)+
+             log(tempo*100+1)+log(valence*100+1)+
+             time_signature+mode+
+             key+explicit+duration, 
+             data=chart_au_year))
+```
+
+
+We begin the interpretation of the statistical output by assessing the model fit and we can first of all see that the model is significant, given the p-value lower than the usual significance level of 0.05. However, according to the multiple R-squared, the model explains only 5.6% of the variation of the dependent variable. 
+
+Looking at the coefficients, we can observe the following: 
+
+- Danceability, energy, instrumentalness, liveness and loudness are the only significant variables with a p-value lower than 0.05, meaning that we can favor the hypothesis that there is a non-zero correlation between these variables and the dependent variable weighted rank.
+
+-	Among the significant variables we can distinguish between the ones that positively affect the ranking position of the song – which are danceability and loudness – and those who negatively affect it – which are energy, instrumentalness and liveness. 
+
+Given these considerations, we can infer that Australians prefer songs that are somewhat more danceable and particularly loud (coefficients equal to 1.205 vs 4.099). Instead, songs that are somewhat more energetic (-0.5377), instrumental (-0.2454) and live(-0.2033) songs are less likely to become very popular.  
+
+
+
+```{r lin_au2, echo=FALSE}
+etable(feols(log(wgt_rank*100+1)~log(danceability*100+1)+
+             log(speechiness*100+1)+log(acousticness*100+1)+
+             log(energy*100+1)+log(instrumentalness*100+1)+
+             log(liveness*100+1)+log(loudness*100+1)+
+             log(tempo*100+1)+log(valence*100+1)+
+             time_signature+mode+
+             key+explicit+duration
+            | year, 
+            data = chart_au_year),se = "cluster")
+```
+
+Following this initial analysis, we decided to run another logarithmic regression using the release year as fixed effect.  Indeed, the fixed effects logistic regression models have the ability to control for all songs’ fixed characteristics (time independent). This allows us to understand how release year affects the ranking position eliminating other potential confounding effects on our dependent variable. 
+
+Looking at the output, we can see that different variables significantly affect the ranking position. Other than danceability, energy, instrumentalness and loudness, this regression shows us that time signature is also affecting the relationship. This is an interesting insight as it proves our assumption that the release year does compromise the analysis and therefore it does make sense to control for time invariant characteristics of the songs. 
+
+
+```{r lin_au3, echo=FALSE}
+etable(feols(log(wgt_rank*100+1)~log(danceability*100+1)+
+             log(speechiness*100+1)+log(acousticness*100+1)+
+             log(energy*100+1)+log(instrumentalness*100+1)+
+             log(liveness*100+1)+log(loudness*100+1)+
+             log(tempo*100+1)+log(valence*100+1)+
+             time_signature+mode+
+             key+explicit+duration
+            | year + artistName, 
+            data = chart_au_year),se = "cluster")
+
+
+
+```
+
+Moreover, we also decided to run a third logarithmic regression looking at how the release year and the role of the artist separately affect the ranking position. With respect to the previous analysis, in this case only danceability and loudness appear to be significantly and positively affecting the ranking position. We can therefore understand that the role of the artist affects the relationship between the ranking position and the independent variables. We can interpret this in two ways: 
+
+-	The artist role affects the features of the song, which in turn have a low effect on the overall score. 
+
+-	The artist role affects the score, which indicates that his/her stardom has the biggest influence on the score. 
+
+The conclusion that we can draw from these assumptions is that the more famous the person is, the more likely the song is to become a hit. 
+This model, when accounting for the release year and the artist explains 63.5% of the data.
+
+At this point of the analysis, we chose to create a series of graphical representations to better show the existing correlations between some of the above-mentioned significant variables and the ranking position. In particular we chose danceability, loudness and energy because they resulted to be the most significant in the previous regressions and we thought it would be interesting to compare them and their effects on the dependent variable. 
+
+
+
+
+```{r lm_plots1, echo=FALSE}
+
+ggplot(chart_au_year,aes(danceability,wgt_rank)) +  
+  geom_point(shape=1) +
+  ggtitle("Linear Regression: Danceability & Ranking")+
+  geom_smooth(method = "glm", 
+              se = FALSE) +
+   theme_bw()
+  
+```
+
+Looking at the graph above, we can observe a linear correlation between rank position and danceability as the more danceable a song is, the more likely it is to obtain a higher ranking in the charts. However, the correlation is not that strong, which is represented by the almost flat slope of the line. 
+
+```{r lm_plots2, echo=FALSE}
+ggplot(chart_au_year,aes(loudness,wgt_rank)) +  
+  geom_point(shape=1) +
+  ggtitle("Linear Regression: Loudness & Ranking")+
+  geom_smooth(method = "glm", 
+              se = FALSE) +
+  theme_bw()
+
+```
+
+Looking at the graphical representation of the relationship between ranking position and loudness, we can recognize again a linear correlation, this time stronger than the previous one. This goes in line with the regression results, as loudness had a higher coefficient indicating a stronger effect on the ranking position. 
+
+```{r lm_plots3, echo=FALSE}
+ggplot(chart_au_year,aes(energy,wgt_rank)) +  
+  geom_point(shape=1) +
+  ggtitle("Linear Regression: Energy & Ranking")+
+  geom_smooth(method = "glm", 
+              se = FALSE) +
+  theme_bw()
+
+```
+
+The graph above shows that there is no strong correlation between ranking position and energy. Indeed, the line connecting the observations is almost horizontal, clearly pointing out the absence of relationship between energy and the dependent variable. 
+
+After showing the existing or non-existing correlations between these three variables – danceability, loudness and energy – and the ranking position, we run a t-test investigating whether these variables taken individually have an effect on the top 10 selection of songs in Australia. 
+
+
+```{r t-tests, echo=FALSE}
+
+t.test(log(danceability*100+1)~TopTen, data = chart_au_year)
+```
+
+The first t-test aims at analyzing the effect of danceability on the population of interest – top 10 songs in Australia. Given that the p-value is lower than 0.05, we can reject the null hypothesis and accept the alternative one. This means that the difference in means is not equal to 0, showing that it is very likely that danceability affects the top 10 songs in Australian charts. The conclusion we can get from this is that generally the best 10 songs are more danceable. 
+
+```{r t-tests2, echo=FALSE}
+
+t.test(log(loudness*100+1)~TopTen, data = chart_au_year)
+t.test(log(energy*100+1)~TopTen, data = chart_au_year)
+```
+
+The other two t-test we run resulted to be non-significant as the p-values are higher than 0.05 in both cases. The conclusion is that energy and loudness do not affect the ranking of the first 10 songs, which therefore do not necessarily need to be energetic and loud in order to be ranked highly. 
+
+```{r Radarplot, echo=FALSE}
+
+#topTen Radar Plot start
+
+plot_subset1 <- chart_au_year[,c(7:15,25,26)]
+# Calculate the mean of the 8 columns for group 0
+mean_group_10 <- sapply(plot_subset1[plot_subset1$TopTen == 0, c(1:8)], mean)
+# Calculate the mean of the 8 columns for group 1
+mean_group_11 <- sapply(plot_subset1[plot_subset1$TopTen == 1, c(1:8)], mean)
+
+#creating radarplot-input
+plot_dummy1 <- as.data.frame(rbind(rep(1,8),rep(0,8),t(cbind(mean_group_11,mean_group_10))))
+row.names(plot_dummy1) <- c("max","min","TopTen", "not TopTen")
+
+
+# Create a vector of colors for the two groups
+colors <- c("darkorange", "darkturquoise")
+
+# Create a radar plot with the 8 columns and two groups
+radarchart(plot_dummy1,  
+           pcol=colors, 
+           title = "Spiderplot of features in Australia",
+           #plty=1, 
+           cglcol="grey", 
+           cglty=1, 
+           vlcex=0.8)
+
+legend(1.4,1, legend=c("Top 10", "not Top 10"), seg.len=0.5, title="groups", pch=1, 
+       bty="n" ,lwd=3, y.intersp=1, horiz=FALSE, col=colors)
+
+##Radarplot top Ten ends here
+
+
+```
+
+To get a better visual understanding of the features and their importance to the ranking position of the songs, we conducted the radar plot with 2 groups: Top 10 tracks in Australia and other songs. As we can see at a first glance, the results look similar for both clusters. Looking more closely, it is noticeable that not Top 10 songs are generally more energetic and faster in terms of pace, while top 10 songs are more danceable and acoustic tracks, which are then more likely to gain the first positions in the Australian charts. 
+One interesting insight is that the live performed songs are also more likely to become “Top 10 tracks”. However, according to the linear regression results “liveness” leads to a lower weighted rating and, therefore, is connected to less likeable songs.    
+Moreover, both groups are quite low on instrumentalness, acousticness, speechiness, indicating that these features are not very typical features for songs in the charts. On the other hand, danceability, loudness and energy have high values overall. 
+
+To further investigate the effect of the three variables showing the highest values – danceability, loudness and energy – we decided to draw some boxplots comparing top10 songs vs not top10 songs. 
+
+
+```{r plots_au1, echo=FALSE}
+
+boxplot(chart_au_year$danceability ~ chart_au_year$TopTen,xlab = "Groups",ylab = "danceability", main= "Boxplot - Danceability", xaxt="n")
+axis(side = 1, at = c(1,2), labels = c("not Top Ten", "Top Ten"))
+
+```
+
+This boxplot shows the difference between top10 and non top10 songs in relation to danceability. We start by first comparing the medians, which are different with the median of the top10 songs being higher. This tells us that top10 songs are generally more danceable. Looking at the ranges, the non top10 songs present several outliers and the dispersion is bigger, which we need to take into consideration when drawing the final conclusion. Overall, we can say that danceability does indeed impact the ranking of songs and is generally more present in songs that reach the top10 charts.
+
+```{r plots_au2, echo=FALSE}
+boxplot(chart_au_year$loudness ~ chart_au_year$TopTen, xlab = "Groups",ylab = "loudness", main= "Boxplot - Loudness", xaxt="n")
+axis(side = 1, at = c(1,2), labels = c("not Top Ten", "Top Ten"))
+```
+
+The second boxplot shows the difference between top10 and non top10 songs in relation to loudness. In this case the medians do not differ much, indicating that loudness does not make such difference between the two populations of songs. We do however observe many outliers in the not top10 group, which could distort our final insights. 
+
+```{r plots_au3, echo=FALSE}
+boxplot(chart_au_year$energy ~ chart_au_year$TopTen, xlab = "Groups",ylab = "energy", main= "Boxplot - Energy", xaxt="n")
+axis(side = 1, at = c(1,2), labels = c("not Top Ten", "Top Ten"))
+```
+
+Regarding the last boxplot, we can see that the medians differ with the one of non top10 songs being slightly higher than top10. This indicates that energy is actually an indicator of less likeable songs, even though in this case we also see few outliers so we need to consider that results may be distorted. When considering the t-test conducted before we find that although there is a visible difference, this difference is statistically insignificant.
+
+```{r plots_au4, echo=FALSE}
+plot(chart_au_year$danceability, chart_au_year$streams,
+     col = factor(chart_au_year$TopTen),
+     main = "Scatterplot: Danceability & Streams",
+     xlab = "danceability",ylab = "streams")
+```
+
+We then decided to graph the relationship between streams and danceability in a scatterplot, as the latter resulted to be the most significant variable. From this graph we can observe that when danceability is between 0.5 and 0.8 the number of streams increases. Therefore, we can assume that there is also a correlation between danceability and streams. in this graph the top ten songs are highlighted by being marked red.
+
+```{r plots_au5, echo=FALSE}
+ggplot(data=chart_au_year[chart_au_year$TopTen==1,], aes(x = danceability, y = wgt_rank))+
+  ggtitle("Density plot of the Top Ten")+
+  geom_density_2d()+
+  geom_point()
+```
+
+```{r plots_au6, echo=FALSE}
+ggplot(data=chart_au_year[chart_au_year$TopTen==0,], aes(x = danceability, y = wgt_rank))+
+  ggtitle("Density plot of not Top Ten")+
+  geom_density_2d()+
+  geom_point()
+
+```
+
+Here again we look at the relationship between danceability and weighted ranking through density plots. The first one is presenting the data of the top ten songs, while the second one shows all other songs. We can see via the density lines that for danceability values between 0.6 and 0.8 the ranking position increases for the top ten, showing us once again that danceability is a very valued feature when it comes to higher ranked songs. The second graph cannot produce visible density lines due to the dense amount of data points close to zero. Because of this the density lines  are not visible in this graph. It shows though, that a lot of highly ranked songs have a danceability between 0.5 and 0.75.
+
+If we want to take a look at the density lines we can plot the data with a focus on the density:
+
+```{r plots_au7, echo=FALSE}
+ggplot(data=chart_au_year[chart_au_year$TopTen==0,], aes(x = danceability, y = wgt_rank))+
+  ggtitle("Density plot of not Top Ten")+
+  geom_density_2d()
+```
+
+This shows, what we already saw before, that there is a lot of weight at the bottom.
+
+
+
+## Italy
+
+
+We will now examine the data from Italy. As we did previously for Australia, we present the most popular songs in Italy between 2015 and 2021, along with their respective artist names, streams, and weighted ranking position. The outcomes are as follows:
+
+```{r itStart, echo=FALSE}
+
+
+head(chart_it[,c("trackName", "artistName","streams","wgt_rank")])
+
+
+```
+
+
+The question that arises once more is what these songs have in common, or more specifically, what makes these songs popular in Italy. We decided to perform another logarithmic regression with songs released after 2015.
+  
+```{r lin_it1, echo=FALSE}
+
+summary(lm(log(wgt_rank*100+1)~log(danceability*100+1)+
+             log(speechiness*100+1)+log(acousticness*100+1)+
+             log(energy*100+1)+log(instrumentalness*100+1)+
+             log(liveness*100+1)+log(loudness*100+1)+
+             log(tempo*100+1)+log(valence*100+1)+
+             time_signature+mode+
+             key+explicit+duration, 
+           data=chart_it_year))
+```
+
+We begin analyzing the model fit. As evidenced by the low p-value (<0.05), the results are significant. However, the model only explains about 5.2% of the data variability, according to the multiple R-squared.
+
+Looking at the coefficients, we can see the following: 
+
+-	The only significant variables, with p-values lower than 0.05, are danceability, instrumentalness, liveness, loudness, time signature, and explicit. 
+
+-	Among the significant variables, we can distinguish those that positively affect the song's ranking position - danceability, loudness, and time signature - and those that negatively affect it - instrumentalness, liveness, and explicit.
+ 
+This allows us to state that Italians prefer songs that are high in danceability, loudness (respectively with coefficients of 1.112 and   4.090). Instead, songs that are high in instrumentalness, liveness (-0.1723 and -0.1752 respectively) and that are also explicit (-0.3339) are less likely to be hits in Italy.
+
+
+```{r lin_it2, echo=FALSE}
+etable(feols(log(wgt_rank*100+1)~log(danceability*100+1)+
+               log(speechiness*100+1)+log(acousticness*100+1)+
+               log(energy*100+1)+log(instrumentalness*100+1)+
+               log(liveness*100+1)+log(loudness*100+1)+
+               log(tempo*100+1)+log(valence*100+1)+
+               time_signature+mode+
+               key+explicit+duration
+             | year, 
+             data = chart_it_year),se = "cluster")
+```
+
+Also in this case, we use a logarithmic regression with fixed effects to see if the release year influences the popularity of a song in a rank. The results show that, all the previously significant features besides explicit are significant when accounting for the release year. Furthermore, the within R-squared increased to 5.5%, hence a higher share of variability of the data can now be explained. This demonstrates that the track's release year compromised our previous results.
+
+```{r lin_it3, echo=FALSE}
+etable(feols(log(wgt_rank*100+1)~log(danceability*100+1)+
+               log(speechiness*100+1)+log(acousticness*100+1)+
+               log(energy*100+1)+log(instrumentalness*100+1)+
+               log(liveness*100+1)+log(loudness*100+1)+
+               log(tempo*100+1)+log(valence*100+1)+
+               time_signature+mode+
+               key+explicit+duration
+             | year + artistName, 
+             data = chart_it_year),se = "cluster")
+
+
+
+```
+
+Again we run a logarithmic regression with two fixed effects: the release year and the artist’s name. Also in this case the multiple R-squared increased tremendously and the model is now able to explain 59.5% of the variation in our data. In this regression the only significant results are danceability and loudness. We can infer that the artist’s name affects the relationship between the song’s rank and the independent variables.
+
+We then proceed to do a graphical representation of the existing correlations between some of the previously mentioned variables and ranking position. We focused on danceability, loudness, and energy once more.
+
+```{r lm_plots_it, echo=FALSE}
+
+ggplot(chart_it_year,aes(danceability,wgt_rank)) +  
+  geom_point(shape=1) +
+  ggtitle("Linear Regression: Danceability & Ranking")+
+  geom_smooth(method = "glm", 
+              se = FALSE) +
+  theme_bw()
+
+
+```
+
+We can identify a positive linear correlation between ranking position and danceability by looking at the graphical representation of the relationship between these two variables. The more suitable the track is for dancing, the better the chances of gaining a higher weighted ranking.
+
+
+```{r lm_plots_it1, echo=FALSE}
+ggplot(chart_it_year,aes(loudness,wgt_rank)) +  
+  geom_point(shape=1) +
+  ggtitle("Linear Regression: Loudness & Ranking")+
+  geom_smooth(method = "glm", 
+              se = FALSE) +
+  theme_bw()
+```
+
+We can also identify a positive linear correlation between ranking position and loudness. More specifically, the louder the track, the better the chances of gaining a higher weighted ranking.
+
+```{r lm_plots_it2, echo=FALSE}
+ggplot(chart_it_year,aes(energy,wgt_rank)) +  
+  geom_point(shape=1) +
+  ggtitle("Linear Regression: Energy & Ranking")+
+  geom_smooth(method = "glm", 
+              se = FALSE) +
+  theme_bw()
+
+```
+
+Looking at the graph above, we can see that there is no relationship between a song's energy and its ranking position.  The almost horizontal line connecting the observations indicates that there is no influence on the dependent variable. 
+
+Following the demonstration of the existence or absence of linear correlations between these three variables and ranking position, we used a t-test to determine whether these variables, taken individually, influence the top ten song selection in Italy.
+
+
+```{r t-tests_it1, echo=FALSE}
+t.test(log(danceability*100+1)~TopTen, data = chart_it_year)
+```
+
+A first t-test is carried out to examine the effect of danceability on the population of interest - the top ten songs in Italy. We cannot reject the null hypothesis because the p-value is greater than 0.05. This means that danceability has no effect on the ranking of the first ten songs, which do not have to be danceable in order to be ranked highly in Italy.
+
+
+
+```{r t-tests_it3, echo=FALSE}
+t.test(log(loudness*100+1)~TopTen, data = chart_it_year)
+```
+
+Similarly, due to the high p-value, loudness has no effect on the ranking of the top ten songs in Italy.
+
+```{r t-tests_it2, echo=FALSE}
+t.test(log(energy*100+1)~TopTen, data = chart_it_year)
+```
+
+We perform the same test, but this time for energy. Because the p-value is greater than 0.05, we accept the null hypothesis and reject the alternative one. The conclusion is that energy has no effect on the ranking of the top ten songs.
+
+```{r Radarplot_it, echo=FALSE}
+
+#topTen Radar Plot start
+
+plot_subset2 <- chart_it_year[,c(7:15,25,26)]
+# Calculate the mean of the 8 columns for group 0
+mean_group_20 <- sapply(plot_subset2[plot_subset2$TopTen == 0, c(1:8)], mean)
+# Calculate the mean of the 8 columns for group 1
+mean_group_21 <- sapply(plot_subset2[plot_subset2$TopTen == 1, c(1:8)], mean)
+
+#creating radarplot-input
+plot_dummy2 <- as.data.frame(rbind(rep(1,8),rep(0,8),t(cbind(mean_group_21,mean_group_20))))
+row.names(plot_dummy2) <- c("max","min","TopTen", "not TopTen")
+
+# Create a radar plot with the 8 columns and two groups
+radarchart(plot_dummy2,  
+           pcol=colors,
+           title = "Spiderplot of features in Italy",
+           #plty=1, 
+           cglcol="grey", 
+           cglty=1, 
+           vlcex=0.8)
+
+legend(1.4,1, legend=c("TopTen", "not TopTen"), seg.len=0.5, title="groups", pch=1, 
+       bty="n" ,lwd=3, y.intersp=1, horiz=FALSE, col=colors)
+
+##Radarplot top Ten ends here
+
+
+```
+
+We ran the radar plot with two groups: Top 10 tracks in Italy and other songs, to get a better visual understanding of the features and their importance to the ranking position of the songs. It is clear that Top 10 songs score higher in terms of danceability, acousticness, tempo, loudness, and liveness. While scoring lower in all other fields. 
+
+We decided to draw some boxplots comparing top 10 songs vs. non-top 10 songs to further investigate the effect of the three variables.
+
+
+```{r Plots_it1, echo=FALSE}
+boxplot(chart_it_year$danceability ~ chart_it_year$TopTen, xlab = "Groups",ylab = "danceability", main= "Boxplot - Danceability", xaxt="n")
+axis(side = 1, at = c(1,2), labels = c("not Top Ten", "Top Ten"))
+```
+
+Top 10 songs score higher on average in terms of danceability. Their boxplot shows no outliers and a more compact distribution. The boxplot for non-top 10 songs, on the other hand, shows more dispersion as well as a number of outliers.
+
+```{r Plots_it2, echo=FALSE}
+boxplot(chart_it_year$loudness ~ chart_it_year$TopTen, xlab = "Groups",ylab = "loudness", main= "Boxplot - Loudness", xaxt="n")
+axis(side = 1, at = c(1,2), labels = c("not Top Ten", "Top Ten"))
+```
+
+The second boxplot shows that both groups score similarly in terms of loudness, as shown by the medians being very close. Looking at the graph, the non-top 10 songs have a few outliers and a wider dispersion.
+
+```{r Plots_it3, echo=FALSE}
+boxplot(chart_it_year$energy ~ chart_it_year$TopTen, xlab = "Groups",ylab = "energy", main= "Boxplot - Energy", xaxt="n")
+axis(side = 1, at = c(1,2), labels = c("not Top Ten", "Top Ten"))
+```
+
+The final boxplot compares the energy levels of top 10 and non-top 10 songs. In terms of level position, the medians of these two groups are similar, yet the mean of the top 10 songs is slightly lower. This indicates that the top 10 songs are generally slightly less energetic, although we know from the analysis before, that this difference is not significant. 
+
+```{r Plots_it4, echo=FALSE}
+plot(chart_it_year$danceability, chart_it_year$streams,
+     col = factor(chart_it_year$TopTen),
+     main = "Scatterplot: Danceability & Streams",
+                  xlab = "danceability",ylab = "streams")
+```
+
+According to the previous analyses, danceability is once again the most important feature in terms of its influence on the weighted ranking. That is why we decided to look into it further also for the case of Italy.
+
+To begin, we created a scatterplot to investigate the relationship between streams and danceability. We can see from this graph that as danceability increases, so does the number of streams. As a result, we can assume that there is a link between danceability and streams.
+
+
+```{r Plots_it5, echo=FALSE}
+ggplot(data=chart_it_year[chart_it_year$TopTen==1,], aes(x = danceability, y = wgt_rank))+
+  ggtitle("Density plot of the Top Ten songs")+
+  geom_density_2d()+
+  geom_point()
+```
+
+Second, in order to better understand the relationship between danceability and weighted ranking, we performed a density plot. In the case of Italy, the main density of data is concentrated in the region between 0.65 and 0.85, and there are more contours in this region, indicating that the majority of the data is located there. The data points vary a lot, indicating different danceability scores for the top 10 songs .
+
+```{r Plots_it6, echo=FALSE}
+ggplot(data=chart_it_year[chart_it_year$TopTen==0,], aes(x = danceability, y = wgt_rank))+
+  ggtitle("Density plot of not Top Ten songs")+
+  geom_density_2d()+
+  geom_point()
+```
+
+This final graph examines the relationship between danceability and weighted ranking of the songs which are not top 10 songs. Again the density lines of this plot are not visible, because the data is very dense close to zero. We can see that danceability values surrounding 0.75 are high in the ranking position, indicating that danceability is a highly valued feature in higher ranked songs.
+
+
+
+
+## USA
+
+
+Our last country to analyze are the USA. As occurred in the case of previous countries, we started by identifying the most popular tracks between 2015-2021 in the USA. The results are the following:
+
+```{r usStart, echo=FALSE}
+
+
+head(chart_us[,c("trackName", "artistName","streams","wgt_rank")])
+
+
+```
+
+The next step is to understand what makes these songs a hit in USA. Once again we decided to run a logarithmic regression with songs that were released only after 2015.
+  
+```{r lin_us1, echo=FALSE}
+
+summary(lm(log(wgt_rank*100+1)~log(danceability*100+1)+
+             log(speechiness*100+1)+log(acousticness*100+1)+
+             log(energy*100+1)+log(instrumentalness*100+1)+
+             log(liveness*100+1)+log(loudness*100+1)+
+             log(tempo*100+1)+log(valence*100+1)+
+             time_signature+mode+
+             key+explicit+duration, 
+           data=chart_us_year))
+```
+
+Overall, the results are significant, as the p-value is less than 0.05. However, according to the multiple R-squared, the model explains only around 2,7% of the data variability.
+ 
+Looking at the coefficients, we can observe the following:  
+
+-	Danceability, instrumentalness, energy, liveness, loudness and mode are the only significant variables with a p-value lower than 0.05.  
+
+-	Among the significant variables we can distinguish between the ones that positively affect the ranking position of the song – which are danceability and loudness – and those who negatively affect it – which are energy, instrumentalness, liveness and mode.  
+ 
+Hence, we can infer that Americans prefer songs that are especially danceable and loud (coefficients equal to 0.9247 vs 1.409). Instead, tracks that are particularly energetic (-0.4160), instrumental(-0.1885) and live (-0.1389)are less likely to become an American hit.
+
+
+```{r lin_us2, echo=FALSE}
+etable(feols(log(wgt_rank*100+1)~log(danceability*100+1)+
+               log(speechiness*100+1)+log(acousticness*100+1)+
+               log(energy*100+1)+log(instrumentalness*100+1)+
+               log(liveness*100+1)+log(loudness*100+1)+
+               log(tempo*100+1)+log(valence*100+1)+
+               time_signature+mode+
+               key+explicit+duration
+             | year, 
+             data = chart_us_year),se = "cluster")
+```
+
+We then ran the logarithmic regression with a fixed effect (the release year). The output demonstrates the within R-squared increased to 3.3% of the explained data variation. It proves once again that the release year of a track significantly compromises the results. This output shows that mode does not have an effect on the ranking when accounting for the release year.
+
+```{r lin_us3, echo=FALSE}
+etable(feols(log(wgt_rank*100+1)~log(danceability*100+1)+
+               log(speechiness*100+1)+log(acousticness*100+1)+
+               log(energy*100+1)+log(instrumentalness*100+1)+
+               log(liveness*100+1)+log(loudness*100+1)+
+               log(tempo*100+1)+log(valence*100+1)+
+               time_signature+mode+
+               key+explicit+duration
+             | year + artistName, 
+             data = chart_us_year),se = "cluster")
+
+
+
+```
+
+The last logarithmic regression that we ran was the logarithmic regression with two fixed effects: the release year and the artist’s name. First of all, it is worthy to mention that the multiple R-squared increased again and the model is now able to explain 62.9% of our data. In this model the only significant results are danceability, acousticness and loudness. We can assume that the artist’s name affects the relationship between the song’s rank and the independent variables. One interesting insight is that in this case the acousticness of a song does indeed influence the weighted ranking in a negative way (-0.1502), while it had a positive effect in the previous regression, and did not have an effect in the other countries. Such a change in sign indicates that there is a different relationship between acousticness and the song’s ranking when accounting for the artist. 
+ 
+To sum it up, the results of the American Spotify market are quite similar to the results of the previous countries. As we can see from the regressions, the only difference being acousticness. We still consider the three previously presented features - danceability, loudness and energy - in the upcoming analysis to make it compareable.
+
+
+```{r lm_plots_us1, echo=FALSE}
+
+ggplot(chart_us_year,aes(danceability,wgt_rank)) +  
+  geom_point(shape=1) +
+  ggtitle("Linear Regression: Danceability & Ranking")+
+  geom_smooth(method = "glm", 
+              se = FALSE) +
+  theme_bw()
+```
+
+Looking at the graphical representation of the relationship between ranking position and danceability, we can identify the positive linear correlation between these two variables. The more a track is suitable for dancing, the stronger is its weighted ranking. 
+
+```{r lm_plots_us2, echo=FALSE}
+ggplot(chart_us_year,aes(loudness,wgt_rank)) +  
+  geom_point(shape=1) +
+  ggtitle("Linear Regression: Loudness & Ranking")+
+  geom_smooth(method = "glm", 
+              se = FALSE) +
+  theme_bw()
+```
+
+Looking at the graph above, we can observe that there is a positive correlation between the loudness of a song and its ranking position. 
+
+```{r lm_plots_us3, echo=FALSE}
+ggplot(chart_us_year,aes(energy,wgt_rank)) +  
+  geom_point(shape=1) +
+  ggtitle("Linear Regression: Energy & Ranking")+
+  geom_smooth(method = "glm", 
+              se = FALSE) +
+  theme_bw()
+
+```
+
+The graph above shows that there is no linear correlation between the energy of a song and its position in the rank. It shows a slight negative effect, but we know from the analysis above that this is not significant. 
+
+After demonstrating the existing or non-existing linear correlations between these three variables – danceability, loudness and energy – and the ranking position, we ran a t-test in order to identify whether these variables taken individually impact the top 10 selection of songs in USA.
+
+
+```{r t-tests_us1, echo=FALSE}
+t.test(log(danceability*100+1)~TopTen, data = chart_us_year)
+```
+
+The goal of a first t-test is to analyze the effect of danceability on the population of interest – top 10 songs in the USA. Given that the p-value is lower than 0.05, we can reject the null hypothesis and accept the alternative hypothesis. This means that the difference in means is different from 0, showing that it is very likely that danceability affects the top 10 songs in the US charts. What is more, the sample mean of the top 10 songs is greater than the sample mean of the other songs (4.326 vs 4.202). The conclusion we can get from this is that generally the best 10 songs are more danceable than the other tracks in the chart.  
+
+
+```{r t-tests_us3, echo=FALSE}
+t.test(log(loudness*100+1)~TopTen, data = chart_us_year)
+
+```
+
+The second t-test analyzes the same for loudness. It shows a p-value of 0.302 and is not significant (>0.05). Therefore loudness has no effect on the top 10 ranking in the US. 
+
+```{r t-tests_us2, echo=FALSE}
+t.test(log(energy*100+1)~TopTen, data = chart_us_year)
+```
+
+The third t-test analyzes the effect of energy on the population of interest – top 10 songs in the USA. Given that the p-value is higher than 0.05 (0.818), we accept the null hypothesis and reject the alternative one. The conclusion is that energy does not affect the ranking of the first 10 songs, which therefore do not necessarily need to be energetic in order to be ranked highly. 
+
+
+Next up, we will take a look at the spider graph of the US:
+```{r Radarplot_us, echo=FALSE}
+
+#topTen Radar Plot start
+
+plot_subset3 <- chart_us_year[,c(7:15,25,26)]
+# Calculate the mean of the 8 columns for group 0
+mean_group_30 <- sapply(plot_subset3[plot_subset3$TopTen == 0, c(1:8)], mean)
+# Calculate the mean of the 8 columns for group 1
+mean_group_31 <- sapply(plot_subset3[plot_subset3$TopTen == 1, c(1:8)], mean)
+
+#creating radarplot-input
+plot_dummy3 <- as.data.frame(rbind(rep(1,8),rep(0,8),t(cbind(mean_group_31,mean_group_30))))
+row.names(plot_dummy3) <- c("max","min","TopTen", "not TopTen")
+
+# Create a radar plot with the 8 columns and two groups
+radarchart(plot_dummy3,  
+           pcol=colors, 
+           title = "Spiderplot of features in the US",
+           #plty=1, 
+           cglcol="grey", 
+           cglty=1, 
+           vlcex=0.8)
+
+legend(1.4,1, legend=c("TopTen", "not TopTen"), seg.len=0.5, title="groups", pch=1, 
+       bty="n" ,lwd=3, y.intersp=1, horiz=FALSE, col=colors)
+
+##Radarplot top Ten ends here
+
+
+```
+
+We then constructed the radar plot with our 2 groups: Top 10 tracks in the USA and other songs. It is noticeable that not Top 10 songs seem generally more energetic, faster in terms of pace and score higher in speechiness, while Top 10 songs are more danceable.  
+Moreover, both groups are quite low on instrumentalness, acousticness, speechiness and liveness, which shows that those features are not characteristic for the US charts. 
+ 
+To further investigate the effect of the three variables we focused on – danceability, loudness and energy – we decided to draw some boxplots comparing top 10 songs vs not top 10 songs.
+
+
+```{r Plots_us1, echo=FALSE}
+boxplot(chart_us_year$danceability ~ chart_us_year$TopTen, xlab = "Groups",ylab = "danceability", main= "Boxplot - Danceability", xaxt="n")
+axis(side = 1, at = c(1,2), labels = c("not Top Ten", "Top Ten"))
+```
+
+This boxplot shows the difference between top 10 and non top 10 songs in relation to danceability. The medians of the top 10 songs are slightly higher. This tells us that top 10 songs are generally more danceable. The t-test that was conducted before also shows, that this difference is significant.
+
+```{r Plots_us2, echo=FALSE}
+boxplot(chart_us_year$loudness ~ chart_us_year$TopTen, xlab = "Groups",ylab = "loudness", main= "Boxplot - Loudness", xaxt="n")
+axis(side = 1, at = c(1,2), labels = c("not Top Ten", "Top Ten"))
+```
+
+This boxplot shows the difference between top 10 and non top 10 songs in relation to loudness. The medians of these two groups are quite similar. This tells us that top 10 songs are generally not louder than the other ones, but the values of not top 10 songs vary more in  loudness, while the top ten songs are more dense in between 0.8 and 0.9. 
+
+```{r Plots_us3, echo=FALSE}
+boxplot(chart_us_year$energy ~ chart_us_year$TopTen, xlab = "Groups",ylab = "energy", main= "Boxplot - Energy", xaxt="n")
+axis(side = 1, at = c(1,2), labels = c("not Top Ten", "Top Ten"))
+```
+
+The last boxplot shows the difference between top 10 and non top 10 songs in relation to energy. The medians of these two groups are somewhat different, the median of the top 10 songs being slightly lower. This tells us that top 10 songs are generally less energetic, although this difference is not significant.
+
+As we can see from the previous analyzes, danceability is once again the strongest feature in terms of its impact on the weighted ranking. That is why we decided to examine it in a more details. 
+
+```{r Plots_us4, echo=FALSE}
+
+plot(chart_us_year$danceability, chart_us_year$streams,
+     col = factor(chart_us_year$TopTen), 
+     main = "Scatterplot: Danceability & Streams",
+     xlab = "danceability",ylab = "streams")
+```
+
+
+First of all, we computed a scatterplot investigating the relationship between streams and danceability. From this graph we can observe that with the increase in danceability, the number of streams also increases. Therefore, we can assume that there is also an effect between danceability and streams. 
+
+
+```{r Plots_us5, echo=FALSE}
+ggplot(data=chart_us_year[chart_us_year$TopTen==1,], aes(x = danceability, y = wgt_rank))+
+  ggtitle("Density plot of the Top Ten songs")+
+  geom_density_2d()+
+  geom_point()
+```
+
+Secondly, we conducted a density plot in order to better understand the relationship between danceability and the weighted ranking. As we can see, the main density of a data is concentrated in the region between 0.65 and 0.85, but the data varies a lot.
+
+```{r Plots_us6, echo=FALSE}
+ggplot(data=chart_us_year[chart_us_year$TopTen==0,], aes(x = danceability, y = wgt_rank))+
+  ggtitle("Density plot of not Top Ten songs")+
+  geom_density_2d()+
+  geom_point()
+
+```
+
+The final graph is to look once again at the relationship between danceability and the weighted ranking for the not top 10 songs. We can see that for danceability values surrounding 0.75 the ranking position increases, showing us that danceability is a very valued feature when it comes to higher ranked songs. Again the data is too dense at the bottom to produce a visible density line.
+
+
+
+
+# The differences between countries
+
+After presenting the output of our analysis with respect to the three countries individually, we thought it would be interesting to compare them to get a more comprehensive view. We decided to run this comparison analysis on two levels: firstly on the entire dataset, including all songs for the three countries under consideration, and secondly on a reduced dataset, which only includes the top 10 songs. 
+
+```{r bla9, echo=FALSE, include=FALSE}
+
+chart_total <- chartdata %>%
+  dplyr::group_by(spotify_trackID,region) %>%
+  dplyr::summarise(count = n(),
+                   artistName = dplyr::first(artistName),
+                   trackName = dplyr::first(trackName),
+                   wgt_rank = sum(wgt_rank),
+                   trackPopularity = mean(trackPopularity),
+                   acousticness = mean(acousticness),                   
+                   danceability = mean(danceability),
+                   energy = mean(energy),
+                   instrumentalness = mean(instrumentalness),
+                   liveness = mean(liveness),
+                   loudness = mean(loudness),
+                   speechiness = mean(speechiness),
+                   tempo = mean(tempo),
+                   valence = mean(valence),
+                   time_signature= mean(time_signature),
+                   mode = mean(mode),
+                   key = mean(key),
+                   explicit = mean(explicit),
+                   duration = mean(duration_ms),
+                   releaseDate = dplyr::first(releaseDate),
+                   primary_artistName = dplyr::first(primary_artistName),
+                   streams = sum(streams),
+  ) %>%
+  as.data.frame()
+
+
+
+
+#get the global values (mean of all the others2/3)
+chart_global <- chart_total %>%
+  dplyr::group_by(spotify_trackID) %>%
+  dplyr::summarise(region = "global",
+                   count = mean(count),
+                   artistName = dplyr::first(artistName),
+                   trackName = dplyr::first(trackName),
+                   wgt_rank = mean(wgt_rank),
+                   trackPopularity = mean(trackPopularity),
+                   acousticness = mean(acousticness),                   
+                   danceability = mean(danceability),
+                   energy = mean(energy),
+                   instrumentalness = mean(instrumentalness),
+                   liveness = mean(liveness),
+                   loudness = mean(loudness),
+                   speechiness = mean(speechiness),
+                   tempo = mean(tempo),
+                   valence = mean(valence),
+                   time_signature= mean(time_signature),
+                   mode = mean(mode),
+                   key = mean(key),
+                   explicit = mean(explicit),
+                   duration = mean(duration),
+                   releaseDate = dplyr::first(releaseDate),
+                   primary_artistName = dplyr::first(primary_artistName),
+                   streams = mean(streams),
+  ) %>%
+  as.data.frame()
+
+chart_total <- chart_total %>%
+  dplyr::filter(region %in% c("au","it","us"))
+
+#combining these two, to compare all countries to a global mean (3/3)
+chart_by_countries <- bind_rows(chart_total,chart_global)
+
+
+
+au_Tops <- chart_au_year[chart_au_year$TopTen == 1,]
+au_Tops$region <- rep("au",10)
+it_Tops <- chart_it_year[chart_it_year$TopTen == 1,]
+it_Tops$region <- rep("it",10)
+us_Tops <- chart_us_year[chart_us_year$TopTen == 1,]
+us_Tops$region <- rep("us",10)
+
+chart_short_countries <- rbind(au_Tops,it_Tops,us_Tops)
+
+
+```
+
+
+```{r bla10, echo=FALSE}
+
+summary(aov(danceability~region,data=chart_total))
+pairwise.t.test(chart_total$danceability,chart_total$region, p.adjust="bonferroni")
+```
+
+In order to perform two statistical tests simultaneously, we decided to execute the Bonferroni t-test, which allowed us to compare different t-test results. We wanted to understand how the three countries behave in relation to the three most intresting variables considered so far – danceability, loudness and energy. 
+
+The first test we run was to compare the role of danceability in Australia vs Italy vs US. The test resulted to be significant with p-value lower than 0.05, meaning that we can reject the null hypothesis. Indeed, by looking at the adjusted p-value for the mean difference in danceability scores, we can notice that there are two significant difference: the first one between Australia and US and the second one between Italy and the US. 
+
+
+```{r bla103, echo=FALSE}
+boxplot(chart_total$danceability ~ chart_total$region, xlab = "Country",ylab = "danceability", main= "Boxplot - Danceability by country")
+```
+
+The same results of the Bonferroni t-test can be observed graphically in the following boxplots. Italy and Australia do not present significant differences, as their boxplots are almost identical. On the other hand, comparing US with Australia and Italy it is noticeable that there is a median difference. This result shows us how danceability has a slightly increased importance in the US than in the other two countries.    
+
+```{r bla101, echo=FALSE}
+summary(aov(loudness~region,data=chart_total))
+pairwise.t.test(chart_total$loudness,chart_total$region, p.adjust="bonferroni")
+```
+
+The following Bonferroni t-test aims at understanding the difference in the role of loudness in the three countries. The p-value is very low, meaning that we can reject the null hypothesis (according to which all means are equal). Looking at the comparisons, we can observe that there is a significant difference between Italy vs Australia and Italy vs the US. 
+
+```{r bla1012, echo=FALSE}
+boxplot(chart_total$loudness ~ chart_total$region, xlab = "Country", ylab = "loudness", main= "Boxplot - Loudness by country")
+```
+
+Following the results of the t-test, we can look at its graphical representation through the use of boxplots. Australia and US look almost identical as their adjusted p-value for the mean difference in loudness scores is equal to 0.99 (almost 1). Instead, Italy shows that loudness is more determinant in making the songs reach the top rankings. 
+
+```{r bla102, echo=FALSE}
+summary(aov(energy~region,data=chart_total))
+pairwise.t.test(chart_total$energy,chart_total$region, p.adjust="bonferroni")
+```
+
+Lastly, we performed the Bonferroni t-test to understand the difference in the role of energy in the three countries. The test is against significant, meaning that we accept the alternative hypothesis assuming that the means are different. By observing the adjusted p-values we can notice significant differences between all countries. 
+
+```{r bla1013, echo=FALSE}
+boxplot(chart_total$energy ~ chart_total$region, xlab = "Country",ylab = "energy", main= "Boxplot - Energy by country")
+
+
+```
+
+To get a more detailed understanding, we decided to graphically represent the results of the last t-test. We can see that energy is most valued in Italy, while it has the lowest median in US. We can therefore conclude that energy has different values in the three countries, but clearly it is most loved in Italy. 
+
+
+```{r bla11, echo=FALSE}
+
+
+summary(aov(danceability~region,data=chart_short_countries))
+pairwise.t.test(chart_short_countries$danceability,chart_short_countries$region, p.adjust="bonferroni")
+boxplot(chart_short_countries$danceability ~ chart_short_countries$region, xlab = "Country",ylab = "danceability", main= "Boxplot - Danceability of Top Ten by country")
+```
+
+We now conduct the same tests but instead of looking at all the songs we focus on the Top 10. To compare the means and standard deviation of our three matched groups, namely Top 10 songs in Australia, Italy and the US we conduct a pairwise comparisons using t-tests with pooled SD. To evaluate if there is a statistically significant difference between the means of these three independent groups we look at the p-value of the ANOVA. Given the high p-value we accept the null hypothesis that the mean danceability score is the same for each country’s Top 10 list of songs. 
+
+```{r bla112, echo=FALSE}
+summary(aov(loudness~region,data=chart_short_countries))
+pairwise.t.test(chart_short_countries$loudness,chart_short_countries$region, p.adjust="bonferroni")
+boxplot(chart_short_countries$loudness ~ chart_short_countries$region, xlab = "Country", ylab = "loudness", main= "Boxplot - Loudness of Top Ten by country")
+```
+
+Again, to check whether there is a statistically significant difference between the means of loundness across our three groups, a one-way ANOVA is utilized. Also in this case the high p-value tells us that the mean loudness score is the same for each country.
+
+```{r bla113, echo=FALSE}
+summary(aov(energy~region,data=chart_short_countries))
+pairwise.t.test(chart_short_countries$energy,chart_short_countries$region, p.adjust="bonferroni")
+boxplot(chart_short_countries$energy ~ chart_short_countries$region, xlab = "Country",ylab = "energy", main= "Boxplot - Energy of Top Ten by country")
+
+```
+
+
+We conduct the same test also to check statistical difference in means of energy. Also in this case, the high p-value tells us that the mean energy score is the same for each country.
+
+Hence, we can conclude that while these three factors were all significantly different in means when taking into consideration all the songs, they are not while taking into consideration only the Top 10 songs. Hence, all the hit songs are very similar across countries.
+
+
+The final step in our work is a joint comparison of spider plots for all three countries in order to identify some common and individual patterns. 
+
+```{r Radar_by_countires_au, echo=FALSE}
+
+radarchart(plot_dummy1,  
+           pcol=colors, 
+           #plty=1, 
+           cglcol="grey", 
+           cglty=1, 
+           vlcex=0.8,
+           title = "Spiderplot - Australia")
+
+legend(1.4,1, legend=c("TopTen", "not TopTen"), seg.len=0.5, title="groups", pch=1, 
+       bty="n" ,lwd=3, y.intersp=1, horiz=FALSE, col=colors)
+
+```
+
+
+```{r Radar_by_countires_it, echo=FALSE}
+
+radarchart(plot_dummy2,  
+           pcol=colors, 
+           #plty=1, 
+           cglcol="grey", 
+           cglty=1, 
+           vlcex=0.8,
+           title = "Spiderplot - Italy")
+
+legend(1.4,1, legend=c("TopTen", "not TopTen"), seg.len=0.5, title="groups", pch=1, 
+       bty="n" ,lwd=3, y.intersp=1, horiz=FALSE, col=colors)
+
+```
+
+```{r Radar_by_countires_us, echo=FALSE}
+
+radarchart(plot_dummy3,  
+           pcol=colors, 
+           #plty=1, 
+           cglcol="grey", 
+           cglty=1, 
+           vlcex=0.8,
+           title = "Spiderplot - USA")
+
+legend(1.4,1, legend=c("TopTen", "not TopTen"), seg.len=0.5, title="groups", pch=1, 
+       bty="n" ,lwd=3, y.intersp=1, horiz=FALSE, col=colors)
+
+```
+
+
+
+Common issues: First of all, we can identify three main, strongest features that are most important and strongly represented in the charts. These are danceability, energy and loudness. What is more, although energy has a strong position, it is more common for a not top 10 tracks. Secondly, there are some features which hold the weakest positions for all three countries and, therefore, are not common or characteristic for songs in the charts of those countries. These are instrumentalness, speechiness, liveness and acousticness. 
+ 
+Individual patterns: Among the strongest features there are some little individual differences that we would like to draw attention to. The level of danceability and loudness stay the same for all three countries, while the position of energy differs. It is more typical for Italian charts to have more energetic songs (at the same time, both for the top 10 and for non-top 10 tracks). Another thing is the appearance of a tempo feature, that is also more typical for an Italian top 10 chart. 
+Among the weakest features there are also some individual differences. For example, liveness of a song is more inherent for top 10 tracks on the Australian market, while for others (especially for USA) there is not that big difference among top 10 and not top 10. Another interesting pattern occurs with acousticness. This feature is much more common for top 10 tracks in Australia and Italy, while for the USA this is more inherent for not top 10 songs.
+
+
+## Conclusion 
+
+Coming to our conclusion, we should remember our main questions that were stated in this work. We tried to examine what is standing behind the real chart hits and whether there are differences among various countries: Australia, Italy and the USA.
+ 
+To sum up, our results state that there is a specific type of song that is more likely to achieve the top 10 ranking and that, overall, this type stays the same among different charts throughout the whole world. More danceable and loud songs, but not too energetic, are preferable and will have the greater chance of being liked by the audience. However, every country has its own small individual patterns, that make a track so special for a concrete market. For example, Italian top songs are more energetic in terms of their pace, while for Australian hits danceability is more common that for others.   
+
+
