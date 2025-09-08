@@ -76,24 +76,29 @@ Courses: SPSS, Research Seminars, Qualitative Research
 </details>
 
 ---
-  
-## My Projects
 ## My Projects
 
-- [Social vs Political Brand Activism](./project_social_media/README.md)  
-  Analysis of ~103k tweets to examine social media engagement depending on CSA topic.
+<details>
+<summary><a href="./project_social_media/README.md">Social vs Political Brand Activism</a></summary>
 
-  **Tech & Methods:**  
-  - **Languages/Tools:** R, Twitter API  
-  - **Methods:** Negative Binomial Regression, Multinomial Logistic Regression, Semantic Analysis, Data Preprocessing, Data Visualization  
-  - **Data:** 103,000 tweets from 87 brands, 2021
+Analysis of ~103k tweets to examine social media engagement depending on CSA topic.  
 
-- [Student Performance Analysis](project_student_performance/README.md)  
+**Tech & Methods:**  
+- **Languages/Tools:** R, Twitter API  
+- **Methods:** Negative Binomial Regression, Multinomial Logistic Regression, Semantic Analysis, Data Preprocessing, Data Visualization  
+- **Data:** 103,000 tweets from 87 brands, 2021  
+
+</details>
+
+<details>
+<summary><a href="./project_student_performance/README.md">Student Performance Analysis</a></summary>
+
 Analysis of student academic performance to identify key factors influencing grades and higher education intentions.  
 
 **Tech & Methods:**  
-  - **Languages/Tools:** Python, Pandas, Scikit-learn, Matplotlib, Seaborn  
-  - **Methods:** Clustering (K-Means), Regression (Linear, LASSO, Random Forest), Classification (Logistic Regression, Decision Tree, Random Forest)  
-  - **Data:** Student Performance Dataset (Portuguese schools, Mathematics & Portuguese subjects, UCI ML Repository)  
+- **Languages/Tools:** Python, Pandas, Scikit-learn, Matplotlib, Seaborn  
+- **Methods:** Clustering (K-Means), Regression (Linear, LASSO, Random Forest), Classification (Logistic Regression, Decision Tree, Random Forest)  
+- **Data:** Student Performance Dataset (Portuguese schools, Mathematics & Portuguese subjects, UCI ML Repository)  
 
 </details>
+
