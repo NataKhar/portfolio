@@ -1,7 +1,7 @@
 # Music Chart Analysis
 
 **Tech & Methods:**  
-- **Languages/Tools:** Python, Pandas, Matplotlib, Seaborn, Plotly, Jupyter Notebook  
+- **Languages/Tools:** R
 - **Methods:** Data Cleaning & Preprocessing, Logarithmic Regression, Fixed Effects Models, T-tests, ANOVA, Radar & Boxplots, Density Plots, Comparative Analysis  
 - **Data:** Top 200 Charts (2015-2021) from Australia, Italy, USA; Sound Features (acousticness, danceability, energy, instrumentalness, liveness, loudness, speechiness, tempo, valence); Technical Features (time_signature, mode, key, explicit)
 
