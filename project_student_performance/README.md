@@ -1,5 +1,6 @@
 # Student Performance Analysis
-[View Student Performance Project Code](/student_performance_code.ipynb)
+[View the code here](student%20performance%20code.ipynb)
+
 
 
 - **Languages:** Python 
