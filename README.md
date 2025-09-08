@@ -100,5 +100,14 @@ Analysis of student academic performance to identify key factors influencing gra
 - **Methods:** Clustering (K-Means), Regression (Linear, LASSO, Random Forest), Classification (Logistic Regression, Decision Tree, Random Forest)  
 - **Data:** Student Performance Dataset (Portuguese schools, Mathematics & Portuguese subjects, UCI ML Repository)  
 
-</details>
+<details>
+<summary><a href="./project_bias/README.md">Bias Mitigation in Recommender Systems</a></summary>
 
+Replication and extension of Lesota et al.’s study on popularity bias in music recommendation algorithms, with evaluation of bias mitigation techniques and generalizability to the Book-Crossing dataset.
+
+**Tech & Methods:**  
+- **Languages/Tools:** Python, Pandas, Scikit-learn, NumPy, Matplotlib, Seaborn  
+- **Methods:** Recommender Systems (RAND, POP, ItemKNN, ALS, BPR, VAE, SLIM), Bias Mitigation (Inverse-Popularity Sampling, Popularity-Weighted Loss, Popularity-Penalized Similarity), Evaluation Metrics (NDCG@10, KL Divergence, Kendall’s τ)  
+- **Data:** LFM-2b Dataset (Last.fm), Book-Crossing Dataset (CC0 Public Domain)
+
+</details>
