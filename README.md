@@ -76,29 +76,16 @@ Courses: SPSS, Research Seminars, Qualitative Research
 </details>
 
 ---
+  
+## My Projects
 
-## Projects
+- [Social vs Political Brand Activism](./project_social_media/README.md)  
+  Analysis of ~103k tweets to examine social media engagement depending on CSA topic.
 
-<details>
-<summary>AI in Austrian Society</summary>
+  **Tech & Methods:**  
+  - **Languages/Tools:** R, Twitter API  
+  - **Methods:** Negative Binomial Regression, Multinomial Logistic Regression, Semantic Analysis, Data Preprocessing, Data Visualization  
+  - **Data:** 103,000 tweets from 87 brands, 2021
 
-**Tools:** Excel, PowerPoint, Python  
-Survey of 10,000+ Austrians → storytelling report on AI perception  
-[View Project](./project_ai_austria)
-</details>
 
-<details>
-<summary>Video Features & Ad ROI</summary>
-
-**Tools:** Python  
-Video feature extraction → proved impact on ad profitability  
-[View Project](./project_video_ads)
-</details>
-
-<details>
-<summary>Social vs Political Brand Activism</summary>
-
-**Tools:** Python, Twitter API, Regression  
-Social media engagement analysis  
-[View Project](./project_social_media)
 </details>
