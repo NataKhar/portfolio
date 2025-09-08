@@ -87,5 +87,13 @@ Courses: SPSS, Research Seminars, Qualitative Research
   - **Methods:** Negative Binomial Regression, Multinomial Logistic Regression, Semantic Analysis, Data Preprocessing, Data Visualization  
   - **Data:** 103,000 tweets from 87 brands, 2021
 
+- [Student Performance Analysis](project_student_performance/README.md)  
+Analysis of student academic performance to identify key factors influencing grades and higher education intentions.  
+
+**Tech & Methods:**  
+  - **Languages/Tools:** Python, Pandas, Scikit-learn, Matplotlib, Seaborn  
+  - **Methods:** Clustering (K-Means), Regression (Linear, LASSO, Random Forest), Classification (Logistic Regression, Decision Tree, Random Forest)  
+  - **Data:** Student Performance Dataset (Portuguese schools, Mathematics & Portuguese subjects, UCI ML Repository)  
+
 
 </details>
