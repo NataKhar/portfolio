@@ -125,3 +125,16 @@ Analysis of top chart songs from 2015 to 2021 in Australia, Italy, and the USA t
 
 </details>
 
+<details>
+<summary><a href="./project_marketinganalytics/Presentation_new.pdf">Fair Trade Fashion Consumer Study</a></summary>
+
+Investigation of consumer willingness to pay more for fair trade fashion products, exploring how labeling and product attributes influence perceptions and purchasing decisions.  
+
+**Tech & Methods:**  
+- **Languages/Tools:** Python, Excel, Survey Tools  
+- **Methods:** Between-subject & Within-subject Experiments, Independent T-Test, Regression (WTP = β0 + β1*sustainability + β2*style + β3*label + β4*indispensability), Data Analysis, Data Visualization  
+- **Data:** n=120 participants (50% under 23 years old, 63% female, mostly students, lower income groups), experimental survey responses  
+
+</details>
+
+
