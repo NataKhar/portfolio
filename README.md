@@ -112,3 +112,16 @@ Replication and extension of Lesota et al.’s study on popularity bias in music
 - **Data:** LFM-2b Dataset (Last.fm), Book-Crossing Dataset (CC0 Public Domain)
 
 </details>
+
+<details>
+<summary><a href="./Project_howYourSongBecomeABit/README.md">Music Chart Analysis</a></summary>
+
+Analysis of top chart songs from 2015 to 2021 in Australia, Italy, and the USA to understand which features make songs successful and how they survive over time.  
+
+**Tech & Methods:**  
+- **Languages/Tools:** R, Pandas, NumPy, Matplotlib, Seaborn  
+- **Methods:** Data Analysis, Logarithmic Regression, Fixed Effects Regression, T-tests, ANOVA, Data Visualization (Boxplots, Radar Plots, Density Plots)  
+- **Data:** Top 200 charts from Australia, Italy, USA (2015–2021)
+
+</details>
+
