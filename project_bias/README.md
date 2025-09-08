@@ -1,6 +1,6 @@
 # Bias Mitigation in Recommender Systems  
-
-Notebook: [View the code here](./project_bias/Code_Algorithms_Mitigation.ipynb)  
+[View the code here](./Code_Algorithms_Mitigation.ipynb)
+ 
 
 ## Tech & Methods  
 - **Languages/Tools:** Python, Jupyter Notebook, PyCharm  
