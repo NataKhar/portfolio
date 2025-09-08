@@ -1,5 +1,5 @@
 # Student Performance Analysis
-- Code: [View Student Performance Project Code](project_student_performance/student%20performance%20code.ipynb)
+- Code: [View Student Performance Project Code](/student%20performance%20code.ipynb)
 - **Languages:** Python 
 - **Libraries/Methods:** Pandas, Scikit-learn, Random Forest, Decision Trees, KNN, Regression Analysis, Clustering, Data Visualization  
 
