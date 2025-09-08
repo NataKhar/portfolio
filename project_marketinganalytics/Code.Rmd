@@ -1,0 +1,1068 @@
+---
+title: "Teamwork project"
+output:
+  html_document: default
+  pdf_document: default
+---
+```{r, echo=FALSE}
+knitr::opts_chunk$set(error = TRUE)
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data handling (loading and cleaning)
+
+```{r libraries_load}
+library(qualtRics)
+library(sjlabelled)
+library(dplyr)
+library(stringr)
+```
+
+To import the data to R we can use the read_survey() function from the “qualtRics” library.
+```{r data_load}
+fair_trade_dataset <- read_survey("Data_qualtrics.csv")
+head(fair_trade_dataset)
+```
+
+```{r get_label}
+questions_fairtrade_dataset <- get_label(fair_trade_dataset)
+questions_fairtrade_dataset["I 6"] #example of question label
+```
+```{r columns_delete_1} 
+#exclude columns we don't need [start date, end date, respondent id, recipient last name etc... (the majority of those created by qualtrics)]
+colnames(fair_trade_dataset) 
+```
+
+```{r columns_delete_2} 
+fair_trade_dataset = subset(fair_trade_dataset, select = -c(1,2,3,4,8, 9, 10, 11, 12, 13, 16, 17) ) #we exclude the columns by saying their number
+```
+
+```{r columns_delete_3}
+names(fair_trade_dataset)<-gsub("\\s","_",names(fair_trade_dataset))
+colnames(fair_trade_dataset) #here we can see our final columns
+```
+
+```{r data_cleaning_1}
+nrow(fair_trade_dataset)
+```
+Now we have 148 rows but we want clean our data.
+
+```{r data_cleaning_2}
+#exclude people who spent less than 4 minutes on the whole questionnaire (4 minutes decided by us as a minimum reliable time for completing the questionnaire)
+fair_trade_dataset <- fair_trade_dataset[fair_trade_dataset[2] >= 240,]  
+
+nrow(fair_trade_dataset)
+```
+We see that this reduced our number of rows to 131
+
+```{r data_cleaning_3}
+#exclude all answers that do not have 100% progress
+fair_trade_dataset <- fair_trade_dataset[fair_trade_dataset[1] == 100,]  
+
+nrow(fair_trade_dataset)
+```
+
+We see that this reduced our number of rows to 121
+
+```{r data_cleaning_4_1}
+
+#exchange weird responses (due to different currencies) for the question of “how much do you spend per year on clothes” because of currency confusion. = 4 (kept them)  
+#manual data cleaning
+#Question 11 - I 4, has a problem, basically we talked with 4 of the people who took the survey and they said to us that they have putten to amount according to their local currency and not to euros, so we want to change their answer to euro (values converted according to currency exchange on 30 november)
+to_analyse <- fair_trade_dataset[fair_trade_dataset[11] >= 5000,] #we see who put 5000 or more as yearly expenditure [above mentioned cases] 
+to_analyse <- subset(to_analyse, select = c(11, 59,60) )  #we want to see their nationalities
+head(to_analyse)
+```
+
+```{r data_cleaning_4_2}
+#CONTINUE OF THE ONE ABOVE
+#VALUE REPLACEMENT BY CURRENCY CONVERTED
+fair_trade_dataset[11][fair_trade_dataset[11] == 5000] <- 60
+fair_trade_dataset[11][fair_trade_dataset[11] == 10000] <- 120
+fair_trade_dataset[11][fair_trade_dataset[11] == 80000] <- 960
+max(fair_trade_dataset$I_4) 
+
+```
+We checked it with the max () function and now it's ok since the maximum value is 3000.
+
+```{r data_cleaning_5}
+#delete one weird response “how much do you spend per year on clothes” = 1  
+fair_trade_dataset <- subset(fair_trade_dataset, I_4 >= 10) #we decided that less than 10 euros each year is unrealistic
+nrow(fair_trade_dataset)
+
+```
+So now we have 1 row less and a total of 120 rows.
+
+```{r data_cleaning_6_1}
+#harmonize nationalities (ex. Russia, Russian, Mother russia) 
+#first of all we take a look at which nationalities we have
+unique(fair_trade_dataset$D_4_3_TEXT, incomparables = FALSE)
+```
+
+
+```{r data_cleaning_6_2}
+#harmonize nationalities (ex. Russia, Russian, Mother russia) 
+#then we manually change them
+fair_trade_dataset[60][fair_trade_dataset[60] == "English"] <- "England"
+fair_trade_dataset[60][fair_trade_dataset[60] == "British"] <- "England"
+fair_trade_dataset[60][fair_trade_dataset[60] == "Russian"] <- "Russia"
+fair_trade_dataset[60][fair_trade_dataset[60] == "Mother Russia"] <- "Russia"
+fair_trade_dataset[60][fair_trade_dataset[60] == "romania"] <- "Romania"
+fair_trade_dataset[60][fair_trade_dataset[60] == "Romanian"] <- "Romania"
+fair_trade_dataset[60][fair_trade_dataset[60] == "Swiss"] <- "Switzerland"
+fair_trade_dataset[60][fair_trade_dataset[60] == "Italian"] <- "Italy"
+fair_trade_dataset[60][fair_trade_dataset[60] == "Greek"] <- "Greece"
+
+unique(fair_trade_dataset$D_4_3_TEXT, incomparables = FALSE) #we check them again
+
+
+```
+questions_fairtrade_dataset <- get_label(fair_trade_dataset)
+questions_fairtrade_dataset["I_1__1"]
+
+
+```{r data_cleaning_7_1}
+#we found out that likert answers had when 1 written between parenthesis (strongly disagree) and when 7 (strongly agree), since we need only the numeric value we have to clean our data also from this side
+#first we write down which are the likert columns to clean
+columns_to_clean <- c("I_1__1","I_7_1", "I_7_2", "I_7_3", "I_7_4", "I_7_5", "EX_1.3_1", "EX_1.3_2", "EX_1.3_3", "EX_1.3_4", "EX_1.3_5", "EX_1.3_6", "EX_2.3_1", "EX_2.3_2", "EX_2.3_3", "EX_2.3_4", "EX_2.3_5", "EX_2.3_6", "FT_1_1", "FT_3_1", "FT_3_2", "FT_3_3", "FT_3_4", "FT_3_5", "FT_4_1", "FT_4_2", "FT_4_3", "FT_4_4", "FT_6_1", "FT_6_2", "FT_6_3","FT_6_4","FT_6_5")
+columns_to_clean
+```
+
+```{r name_saving}
+names_saving <- get_label(fair_trade_dataset)
+names_saving
+```
+
+
+```{r data_cleaning_7_2}
+#now we clean them
+fair_trade_dataset <- fair_trade_dataset %>%
+mutate_at(vars(columns_to_clean), ~ as.numeric(substr(., 1, 1)))
+head(fair_trade_dataset)
+
+```
+As we can see now we solved the problem
+
+```{r label_applying}
+library(Hmisc)
+
+#names_saving
+label(fair_trade_dataset) = as.list(names_saving[match(names(fair_trade_dataset), names(names_saving))])
+
+#(fair_trade_dataset)
+
+```
+
+```{r data_type}
+#we can check the type of each column data
+sapply(fair_trade_dataset, class)
+```
+
+```{r gender_question}
+questions_fairtrade_dataset <- get_label(fair_trade_dataset)
+questions_fairtrade_dataset["D_1"] #example of question label
+```
+```{r gender_visualization}
+library(lessR, ggplot2)
+PieChart(D_1, hole = 0, values = "%", data = fair_trade_dataset,
+         fill = c("#4292c6", "#09519c"), main = "Respondents by Gender")
+```
+
+```{r age_question}
+questions_fairtrade_dataset <- get_label(fair_trade_dataset)
+questions_fairtrade_dataset["D_2"] #example of question label
+```
+
+```{r age_visualization}
+library(ggplot2)
+ggplot(fair_trade_dataset, aes(D_2)) +
+  geom_histogram()+ 
+  labs(x = "Age", y = "Frequency", title = "Respondents by age", subtitle = "Red vertical line = mean, blue vertical line = median") + 
+  geom_vline(xintercept = mean(fair_trade_dataset$D_2), color = "red", size = 1) +
+  geom_vline(xintercept = median(fair_trade_dataset$D_2), color = "#2876dd", size = 1) +
+  theme_bw()
+```
+```{r profession_question}
+questions_fairtrade_dataset <- get_label(fair_trade_dataset)
+questions_fairtrade_dataset["D_3"] 
+```
+
+```{r profession_visualization}
+library(dplyr)
+library(scales)
+plotdata <- fair_trade_dataset %>%
+  count(D_3) %>%
+  mutate(pct = n / sum(n),
+         pctlabel = paste0(round(pct*100), "%"))
+
+# plot the bars as percentages, 
+# in decending order with bar labels
+ggplot(plotdata, 
+       aes(x = reorder(D_3, -pct),
+           y = pct)) + 
+  geom_bar(stat = "identity", 
+           fill = "#09519c", 
+           color = "black") +
+  geom_text(aes(label = pctlabel), 
+            vjust = -0.25) +
+  scale_y_continuous(labels = percent) +
+  labs(x = "Profession", 
+       y = "Percent", 
+       title  = "Participants by profession")
+```
+
+
+```{r nationality_question}
+questions_fairtrade_dataset <- get_label(fair_trade_dataset)
+questions_fairtrade_dataset["D_4"]
+questions_fairtrade_dataset["D_4_3_TEXT"]
+```
+
+```{r nationality_data_preparation}
+# Creating a table only with location and nationality data
+nationality_table <- fair_trade_dataset[c(4, 5, 59, 60)]
+# Uniting the columns of nationality into one column
+nationality_table$Nations <- paste(as.character(nationality_table$D_4), as.character(nationality_table$D_4_3_TEXT), sep = "")
+# Changing the name of the nationalities into the proper names of countries 
+nationality_table$Nations <- factor(nationality_table$Nations, levels = c("AustriaNA","GermanyNA","OtherEngland", "OtherSpain", "OtherRussia", "OtherNA", "OtherSwitzerland", "OtherFrench", "OtherRomania","OtherItaly", "OtherGreece"), labels = c("Austria", "Germany","England", "Spain", "Russia", "Other", "Switzerland", "France", "Romania", "Italy", "Greece"))
+```
+
+```{r nationality_data_preparation_2}
+#Creating data frame with the frequency of the contries
+library(dplyr)
+library(scales)
+country_distribution <- nationality_table %>%
+  count(Nations) %>%
+  mutate(pct = n / sum(n),
+         pctlabel = paste0(round(pct*100), "%"))
+```
+
+```{r Country_visualization}
+#Visualization of the countries distribution as percentages, in decending order with bar labels
+library(ggplot2)
+ggplot(country_distribution, 
+       aes(x = reorder(Nations, -pct),
+           y = pct)) + 
+  geom_bar(stat = "identity", 
+           fill = "#09519c", 
+           color = "black") +
+  geom_text(aes(label = pctlabel), 
+            vjust = -0.35) +
+  scale_y_continuous(labels = percent) +
+  labs(x = "Country of birth", 
+       y = "Percent", 
+       title  = "Participants by country of birth")
+```
+
+```{r location_visualization}
+#Additional visualization of the respondents' location
+library (leaflet)
+library (dplyr)
+leaflet()%>%addTiles()%>%addCircleMarkers(data=nationality_table, lat = ~LocationLatitude,lng = ~LocationLongitude, radius = ~3)
+
+```
+
+```{r degree_question}
+questions_fairtrade_dataset <- get_label(fair_trade_dataset)
+questions_fairtrade_dataset["D_5"]
+```
+
+```{r degree_visualization}
+library(dplyr)
+library(scales)
+plotdata <- fair_trade_dataset %>%
+  count(D_5) %>%
+  mutate(pct = n / sum(n),
+         pctlabel = paste0(round(pct*100), "%"))
+
+# plot the bars as percentages, 
+# in decending order with bar labels
+ggplot(plotdata, 
+       aes(x = reorder(D_5, -pct),
+           y = pct)) + 
+  geom_bar(stat = "identity", 
+           fill = "#09519c", 
+           color = "black") +
+  geom_text(aes(label = pctlabel), 
+            vjust = -0.25) +
+  scale_y_continuous(labels = percent) +
+  labs(x = "Highest Degree", 
+       y = "Percent", 
+       title  = "Participants by their higherst degree")
+```
+
+```{r income_question}
+questions_fairtrade_dataset <- get_label(fair_trade_dataset)
+questions_fairtrade_dataset["D_6"]
+```
+
+```{r income_visualization}
+library(lessR, ggplot2)
+PieChart(D_6, hole = 0, values = "%", data = fair_trade_dataset,
+fill = c("#08306b", "#09519c", "#2271b5", "#4292c6","#6baed6"), main = "Respondents by their average net income per month (in Euros)")
+```
+
+```{r introduction_questions_1}
+
+#What I wear is a reflection of my personality
+
+library("HH")
+library("tidyverse")
+refl_personality <- fair_trade_dataset[, startsWith( names(fair_trade_dataset),"I_1__1" )]
+benefit_labels <-questions_fairtrade_dataset["I_1__1"]
+
+names(refl_personality) <- str_extract(benefit_labels, "(?<=).*-")
+
+refl_personality <- pivot_longer(refl_personality, cols = everything())
+refl_personality$name = str_extract(benefit_labels, "(?<=).*-")
+
+refl_personality$value <- factor(refl_personality$value, 
+                                    levels = 1:7, 
+                                    labels = c(
+                                      "strongly disagree",
+                                      "disagree",
+                                      "somewhat disagree",
+                                      "neutral",
+                                      "somewhat agree",
+                                      "agree", 
+                                      "strongly agree"))
+
+likert(table(refl_personality), 
+       main = "", ylab = "", xlab = "number of respondents",
+       col = hcl.colors(7, palette = "Blue-Red 2", rev = TRUE),
+       auto.key = list(columns = 2, title= ""),     
+       panel=function(...){
+               panel.abline(v=seq(-20,80,by=20),col="lightgrey")
+               panel.likert(...)
+             }
+       )
+```
+
+```{r introduction_questions_2}
+#most important attributes
+
+fair_trade_dataset["I_2_1"]
+questions_fairtrade_dataset["I_2_1"]
+
+
+library(dplyr)
+library(wordcloud)
+attribute_1 <- count(fair_trade_dataset, I_2_1)
+wordcloud(words = attribute_1$I_2_1, freq = attribute_1$n, min.freq = 1)
+
+attribute_2 <- count(fair_trade_dataset, I_2_2)
+wordcloud(words = attribute_2$I_2_2, freq = attribute_2$n, min.freq = 1)
+
+attribute_3 <- count(fair_trade_dataset, I_2_3)
+wordcloud(words = attribute_3$I_2_3, freq = attribute_3$n, min.freq = 1)
+
+```
+
+```{r introduction_questions_3}
+#How often do you buy a new pair of jeans?
+
+
+#Var1
+library(MASS)  
+attribute_6 <- fair_trade_dataset$I_3
+attribute_6.freq <- table(attribute_6)
+barplot(attribute_6.freq)
+
+#Var2
+a_6 <- factor(fair_trade_dataset$I_3, ordered=TRUE)
+levels(a_6)
+barplot(table(a_6))
+
+#Var3
+data_6<-as.data.frame(attribute_6.freq)
+barplot(height=data_6$Freq, names=data_6$attribute_6)
+#Var4
+barplot(table(fair_trade_dataset$I_3),col=rgb(0.8,0.1,0.1,0.6),
+        xlab="options", 
+        ylab="values", 
+        main= questions_fairtrade_dataset["I_3"], 
+        ylim=c(0,40)
+)
+
+
+#Var prof
+library(MASS) 
+attribute_6 <- fair_trade_dataset$I_3
+attribute_6.freq <- table(attribute_6)
+data_6<-as.data.frame(attribute_6.freq)
+
+library(colorspace)
+library(ggplot2)
+ggplot(data_6, aes(x=Freq, y=attribute_6, fill=Freq)) +
+  geom_bar(stat="identity", show.legend = FALSE) + 
+  geom_text(aes(label = Freq), hjust = -.1) +
+  ylab("") + 
+  theme_bw() +
+  theme(panel.grid.major.y = element_blank()) +
+  scale_fill_continuous_sequential(palette = "Blues") +
+  expand_limits(x = 0.4)
+  
+```
+
+```{r introduction_questions_4}
+#How much money do you spend per year on clothes?
+
+library(MASS) 
+amount_spend <- fair_trade_dataset$I_4
+money_spend <- table(amount_spend)
+total_amount<-as.data.frame(money_spend)
+
+#Version 1 - Vertical
+ggplot(total_amount, aes(x = Freq , y = amount_spend, group = Freq )) +
+  geom_boxplot() +
+  theme_bw() +
+  theme(panel.grid.major.x = element_blank(), 
+        panel.grid.minor.x = element_blank()) 
+
+
+#Version 2 - Horizontal
+ ggplot(total_amount, aes(x = amount_spend , y = Freq, group = amount_spend )) +
+  geom_boxplot() +
+  theme_bw() +
+  theme(panel.grid.major.x = element_blank(), 
+        panel.grid.minor.x = element_blank()) 
+        
+```
+
+```{r introduction_questions_5, message=TRUE, warning=TRUE}
+#Distribution of 100 points
+questions_fairtrade_dataset["I_5_4"]
+
+points_distribution_question <- names(fair_trade_dataset)[startsWith(names(fair_trade_dataset), "I_5")] 
+distribution_labels <- questions_fairtrade_dataset[points_distribution_question[-length(points_distribution_question) - 1]]
+distribution_answers <- str_extract(distribution_labels, "(?<=- ).*")
+distribution_answers
+
+distribution_data <- fair_trade_dataset[, points_distribution_question[-length(points_distribution_question) - 1]]
+
+colnames(distribution_data) <- distribution_answers[-length(distribution_answers) -1]
+distribution_data
+
+library("tidyr")
+distribution_data <- zap_labels(distribution_data) 
+distribution_data <- pivot_longer(distribution_data, cols = everything(), names_to = "type", values_to = "points")
+
+distribution_median <- sort(c(by(distribution_data$points, distribution_data$type, median)), decreasing = TRUE)
+distribution_data$type <- factor(distribution_data$type, levels = names(distribution_median))
+
+library("ggplot2")
+ggplot(distribution_data, aes(y = points, x=type)) +
+  geom_boxplot() +
+  theme_bw() +
+  theme(panel.grid.major.x = element_blank())
+```
+
+```{r introduction_questions_6}
+
+#How much money do you normally pay for a jeans? 
+
+n_6 <- fair_trade_dataset$I_6
+n_6.freq <- table(n_6)
+money_jeans<-as.data.frame(n_6.freq)
+
+library(colorspace)
+library(ggplot2)
+ggplot(money_jeans, aes(x=Freq, y=n_6, fill=Freq)) +
+  geom_bar(stat="identity", show.legend = FALSE) + 
+  geom_text(aes(label = Freq), hjust = -.1) +
+  ylab("") + 
+  theme_bw() +
+  theme(panel.grid.major.y = element_blank()) +
+  scale_fill_continuous_sequential(palette = "Blues") +
+  expand_limits(x = 0.4)
+```
+
+
+```{r introduction_questions_7}
+#What is most important for you wheny ou buy a jeans?
+
+library(HH)
+Fair_trade_jeans <- fair_trade_dataset[, startsWith(names(fair_trade_dataset), "I_7")]
+Fair_trade_jeans
+
+library(tidyr)
+no_purchase <- questions_fairtrade_dataset[ startsWith(names(fair_trade_dataset), "I_7")]
+names(Fair_trade_jeans) <- str_extract(no_purchase, "(?<=- ).*")
+Fair_trade_jeans = zap_labels(Fair_trade_jeans)
+Fair_trade_jeans <- pivot_longer(Fair_trade_jeans, cols = everything())
+Fair_trade_jeans
+
+Fair_trade_jeans$value <- factor(Fair_trade_jeans$value,
+levels = 1:7,
+labels = c(
+"strongly disagree",
+"disagree",
+"somewhat disagree",
+"neutral",
+"somewhat agree",
+"agree",
+"strongly agree"))
+
+likert(table(Fair_trade_jeans),
+main = "", ylab = "", xlab = "number of respondents",
+col = hcl.colors(7, palette = "Blue-Red 2", rev = TRUE),
+auto.key = list(columns = 2, title= ""),
+panel=function(...){
+panel.abline(v=seq(-100,50,by=50),col="lightgrey")
+panel.likert(...)
+}
+)
+
+```
+
+## Experiment 1
+
+$$ H0= \mu1 = \mu2\\
+H1= \mu1 \neq \mu2 $$
+
+
+```{r experiment 1}
+library(dplyr)
+fair_trade_dataset$EX_1.2_1[is.na(fair_trade_dataset$EX_1.2_1)] <- fair_trade_dataset$EX_2.2_1[is.na(fair_trade_dataset$EX_1.2_1)]
+fair_trade_dataset$WTP <- fair_trade_dataset$EX_1.2_1
+library(ggplot2)
+ggplot(fair_trade_dataset, aes(x= Group, y = WTP)) + geom_boxplot() +
+    geom_jitter(alpha = 0.2, color = "red") + labs(x = "Group",
+    y = "WTP in €") + ggtitle("Boxplot of WTP") +
+    theme_bw()
+library(car)
+leveneTest(WTP ~ Group, data = fair_trade_dataset, center = mean)
+t.test(WTP ~ Group, data = fair_trade_dataset) 
+library(lsr)
+cohensD(WTP ~ Group, data = fair_trade_dataset)
+library(ggstatsplot)
+ggbetweenstats(
+  data = fair_trade_dataset, 
+  plot.type = "box",
+  x = Group, 
+  y = WTP ,
+  type = "p",
+  effsize.type = "d", 
+  messages = FALSE,
+  bf.message = FALSE,
+  mean.ci = TRUE,
+  title = "Mean WTP for different groups"
+)
+fair_trade_dataset$EX_1.3_1[is.na(fair_trade_dataset$EX_1.3_1)] <- fair_trade_dataset$EX_2.3_1[is.na(fair_trade_dataset$EX_1.3_1)]
+fair_trade_dataset$sustainability <- fair_trade_dataset$EX_1.3_1
+
+fair_trade_dataset$EX_1.3_6[is.na(fair_trade_dataset$EX_1.3_6)] <- fair_trade_dataset$EX_2.3_6[is.na(fair_trade_dataset$EX_1.3_6)]
+fair_trade_dataset$working_condition <- fair_trade_dataset$EX_1.3_6
+
+leveneTest(sustainability ~ Group, data = fair_trade_dataset, center = mean)
+leveneTest(working_condition ~ Group, data = fair_trade_dataset, center = mean)
+
+library(lsr)
+cohensD(sustainability ~ Group, data = fair_trade_dataset)
+library(ggstatsplot)
+ggbetweenstats(
+  data = fair_trade_dataset,
+  plot.type = "box",
+  x = Group, 
+  y = sustainability ,
+  type = "nonparametric", 
+  effsize.type = "r", 
+  messages = FALSE,
+  bf.message = FALSE,
+  mean.ci = TRUE,
+  title = "Rating of importance of sustainability when setting the price"
+)
+
+library(lsr)
+cohensD(working_condition ~ Group, data = fair_trade_dataset)
+library(ggstatsplot)
+ggbetweenstats(
+  data = fair_trade_dataset,
+  plot.type = "box",
+  x = Group, 
+  y = working_condition ,
+  type = "nonparametric", 
+  effsize.type = "r", 
+  messages = FALSE,
+  bf.message = FALSE,
+  mean.ci = TRUE,
+  title = "Rating of importance of working condition when setting the price"
+)
+
+```
+## Regression for Experiment 1
+
+
+$$ WTP_i = \beta0 + \beta1 * sustainability_i + \beta2 * style_i + \beta3 * label_i + \beta4 * indispensability_i + \beta5 * personal preferences_i + \beta6 * working condition_i + \beta7 * group_i \epsilon_i $$ 
+
+
+```{r regression experiment 1}
+install.packages('plyr', repos = "http://cran.us.r-project.org")
+options(repos = list(CRAN="http://cran.rstudio.com/"))
+
+fair_trade_dataset$EX_1.3_2[is.na(fair_trade_dataset$EX_1.3_2)] <- fair_trade_dataset$EX_2.3_2[is.na(fair_trade_dataset$EX_1.3_2)]
+fair_trade_dataset$style <- fair_trade_dataset$EX_1.3_2
+
+fair_trade_dataset$EX_1.3_3[is.na(fair_trade_dataset$EX_1.3_3)] <- fair_trade_dataset$EX_2.3_3[is.na(fair_trade_dataset$EX_1.3_3)]
+fair_trade_dataset$label <- fair_trade_dataset$EX_1.3_3
+
+fair_trade_dataset$EX_1.3_4[is.na(fair_trade_dataset$EX_1.3_4)] <- fair_trade_dataset$EX_2.3_4[is.na(fair_trade_dataset$EX_1.3_4)]
+fair_trade_dataset$indispensability <- fair_trade_dataset$EX_1.3_4
+
+fair_trade_dataset$EX_1.3_5[is.na(fair_trade_dataset$EX_1.3_5)] <- fair_trade_dataset$EX_2.3_5[is.na(fair_trade_dataset$EX_1.3_5)]
+fair_trade_dataset$personal_preferences <- fair_trade_dataset$EX_1.3_5
+
+fair_trade_dataset$Groupnew <- ifelse(fair_trade_dataset$Group=="Test Group 1", '1', '2')
+fair_trade_dataset$Groupnew <- as.numeric(fair_trade_dataset$Groupnew)
+
+multiple_regression <- lm(WTP ~ sustainability + working_condition + style + label + indispensability + personal_preferences + Groupnew, data = fair_trade_dataset) 
+summary(multiple_regression) 
+confint(multiple_regression)
+library(ggstatsplot)
+ggcoefstats(x = multiple_regression,
+            title = "WTP predicted by differenct factors")
+
+fair_trade_dataset$yhat <- predict(multiple_regression)
+library(ggplot2)
+ggplot(fair_trade_dataset,aes(yhat,WTP)) +  
+  geom_point(size=2,shape=1) +  
+  scale_x_continuous(name="predicted values") +
+  scale_y_continuous(name="observed values") +
+  geom_abline(intercept = 0, slope = 1) +
+  theme_bw()
+library(car)
+avPlots(multiple_regression)
+fair_trade_dataset$stud_resid <- rstudent(multiple_regression)
+plot(1:nrow(fair_trade_dataset),fair_trade_dataset$stud_resid, ylim=c(-3.3,3.3)) 
+plot(multiple_regression,4)
+plot(multiple_regression,5) # try it with log (+1), add the group, look at interactions (e.g. sustainability)
+plot(multiple_regression, 1)
+plot(multiple_regression, 2)
+plot(multiple_regression, 2)
+
+library("Hmisc")
+rcorr(as.matrix(fair_trade_dataset[,c("sustainability","working_condition","style", "label", "indispensability", "personal_preferences", "Groupnew")]))
+plot(fair_trade_dataset[,c("sustainability","working_condition","style", "label", "indispensability", "personal_preferences", "Groupnew")])
+library(car)
+vif(multiple_regression)
+library(lm.beta)
+lm.beta(multiple_regression)
+install.packages("stargazer")
+library(stargazer)
+stargazer(multiple_regression, type="text", dep.var.labels = c("WTP"), title = "Regression Results", digits = 3, out="models.txt", covariate.labels = c("Sustainability", "Working condition", "Style", "Label", "Indispensability", "Personal preferences", "Group"))
+
+```
+
+```{r Interaction effects_1}
+
+ggplot(fair_trade_dataset, aes(sustainability, WTP, colour = as.factor(Group))) +
+  geom_point() + 
+  geom_smooth(method="lm", alpha=0.1) + 
+  labs(x = "Sustainability", y = "Willingness to pay", colour="Groups") + 
+  theme_bw()
+
+
+```
+
+$$ WTP_i = \beta0 + \beta1 * sustainability_i + \beta2 * style_i + \beta3 * label_i + \beta4 * indispensability_i + \beta5 * personal preferences_i + \beta6 * working condition_i + \beta7 * Group + \beta8 * sustainability_i * Group + \epsilon_i $$
+```{r Interaction effects_2}
+multiple_regression1 <- lm(WTP ~ sustainability + working_condition + style + label + indispensability + personal_preferences + Group + sustainability:Group, data = fair_trade_dataset) 
+summary(multiple_regression1)
+
+```
+
+## Experiment 2 (comparison percentage after education/no education between groups)
+
+
+$$ H0= \mu1 = \mu2\\
+H1= \mu1 \neq \mu2 $$
+
+
+```{r Experiment 2, between subject design}
+library(dplyr)
+fair_trade_dataset$ED_2_1[is.na(fair_trade_dataset$ED_2_1)] <- fair_trade_dataset$NE_1_1[is.na(fair_trade_dataset$ED_2_1)]
+fair_trade_dataset$Percentage_FairTrade <- fair_trade_dataset$ED_2_1
+leveneTest(Percentage_FairTrade ~ Group1, data = fair_trade_dataset, center = mean)
+library(ggplot2)
+ggplot(fair_trade_dataset, aes(x= Group1, y = Percentage_FairTrade)) + geom_boxplot() +
+    geom_jitter(alpha = 0.2, color = "red") + labs(x = "Group",
+    y = "Percentage of Fair Trade clothes in next 12 months") + ggtitle("Boxplot of Percentage of fair trade clothes") +
+    theme_bw()
+t.test( Percentage_FairTrade ~ Group1, data=fair_trade_dataset, mu=0, alternative="two.sided", conf.level=0.95, var.equal=FALSE)
+library(lsr)
+cohensD(Percentage_FairTrade ~ Group1, data = fair_trade_dataset)
+library(ggstatsplot)
+ggbetweenstats(
+  data = fair_trade_dataset,
+  plot.type = "box",
+  x = Group1, 
+  y = Percentage_FairTrade ,
+  type = "p", 
+  effsize.type = "d", 
+  messages = FALSE,
+  bf.message = FALSE,
+  mean.ci = TRUE,
+  title = "Mean of Percentage of Fair Trade clothes in next 12 months"
+)
+```
+
+## Experiment 2 (within subject; means of difference of groups before and after)
+
+$$ H0= \mu1 = \mu2\\
+H1= \mu1 \neq \mu2 $$
+
+```{r Experiment 2, within subject design}
+fair_trade_dataset$difference <- fair_trade_dataset$Percentage_FairTrade - fair_trade_dataset$FT_2_1
+leveneTest(difference ~ Group1, data = fair_trade_dataset, center = mean)
+library(ggplot2)
+ggplot(fair_trade_dataset, aes(x = Group1, y = difference)) +
+    geom_boxplot() + geom_jitter(alpha = 0.2, color = "red") +
+    labs(x = "Group", y = "Difference Percentage of Fair trade clothes before and after") +
+    ggtitle("Boxplot of difference of percentage of Fair Trade Clothes  before and after") + theme_bw()
+t.test( difference ~ Group1, data=fair_trade_dataset, mu=0, alternative="two.sided", conf.level=0.95, var.equal=TRUE)
+library(lsr)
+cohensD(difference ~ Group1, data = fair_trade_dataset)
+library(ggstatsplot)
+ggbetweenstats(
+  data = fair_trade_dataset,
+  plot.type = "box",
+  x = Group1, 
+  y = difference ,
+  type = "p", 
+  effsize.type = "d", 
+  messages = FALSE,
+  bf.message = FALSE,
+  mean.ci = TRUE,
+  title = "Mean of difference of percentage of Fair Trade clothes before and after"
+)
+```
+
+## Experiment 2 (within subject design; comparison of subset education group before and after news)
+
+
+```{r Experiment 2, within-subject design}
+
+library(dplyr)
+subset_education <- subset(fair_trade_dataset, Group1 == "Education", select = c(FT_2_1, ED_2_1))
+library(psych)
+describe(subset_education)
+library(reshape2)
+subset_education_long <- melt(subset_education[, c("FT_2_1",
+    "ED_2_1")])
+names(subset_education_long) <- c("group", "percentage")
+head(subset_education_long)
+leveneTest(percentage ~ group, data = subset_education_long, center = mean)
+library(ggplot2)
+ggplot(subset_education_long, aes(x = group, y = percentage)) +
+    geom_boxplot() + geom_jitter(alpha = 0.2, color = "red") +
+    labs(x = "Group", y = "Percentage of Fair Trade clothes") +
+    ggtitle("Boxplot of percentage of Fair Trade Clothes") + theme_bw()
+ggplot(subset_education_long, aes(percentage)) + geom_histogram(col = "black",
+    fill = "darkblue") + labs(x = "Percentage of Fair Trade Clothes",
+    y = "Frequency") + ggtitle("Histogram of percentage of Fair Trade Clothes") +
+    facet_wrap(~group) + theme_bw()
+t.test(subset_education$FT_2_1, subset_education$ED_2_1,
+    mu = 0, alternative = "two.sided", conf.level = 0.95,
+    paired = TRUE)
+library(ggstatsplot)
+library(afex)
+ggwithinstats(
+  data = subset_education_long,
+  x = group,
+  y = percentage,
+  path.point = FALSE,
+  path.mean = TRUE,
+  sort = "descending", 
+  sort.fun = median,
+  title = "Mean of percentage of Fair Trade clothes for different groups",
+  messages = FALSE,
+  bf.message = FALSE,
+  mean.ci = TRUE,
+  effsize.type = "d" 
+)
+```
+
+```{r fairtrade_1}
+#How familiar are you with the term fair trade?
+library(HH)
+Fair_trade_clothes <- fair_trade_dataset[36]
+Fair_trade_clothes$FT_1_1 <- factor(Fair_trade_clothes$FT_1_1, 
+                                    levels = 1:7, 
+                                    labels = c(
+                                      "no knowledge at all ",
+                                      "very little knowledge",
+                                      "little knowledge",
+                                      "neutral",
+                                      "a bit of knowledge",
+                                      "good knowledge", 
+                                      "I'm an expert "))
+
+likert(table(Fair_trade_clothes$FT_1_1), 
+       main = "Awareness of term fair trade", ylab = "", xlab = "knowledge per respondent", 
+       col = hcl.colors(7, palette = "Blue-Red 2", rev = TRUE),
+       auto.key = list(columns = 2, title= ""),     
+       panel=function(...){
+               panel.abline(v=seq(-100,50,by=50),col="lightgrey")
+               panel.likert(...)
+             }
+       )
+```
+
+```{r fairtrade_2}
+#What percentage of your clothes that you bought in the last 12 months is fair trade?
+##load data in r
+fair_trade_dataset
+
+## insert data to plot 
+forplot <- fair_trade_dataset[,37]
+forplot <- type.convert(forplot)
+forplot
+
+##plot
+boxplot(forplot, horizontal=T, xlab = "Percentage ratings", main = "Fair trade purchase share in past 12 months")
+stripchart(forplot,              # Data
+           method = "jitter", # Random noise
+           pch = 19,          # Pch symbols
+           col = 4,           # Color of the symbol
+           horizontal = TRUE,   # horizontal mode
+           add = TRUE)  
+
+```
+
+```{r fairtrade_3}
+#Why do you not buy "fair trade" clothes?
+#Creating a table with the needed questions and excluding N/A values from it
+library(HH)
+Fair_trade_purchase <- fair_trade_dataset[, startsWith(names(fair_trade_dataset), "FT_3_")]
+Fair_trade_purchase <- na.omit(Fair_trade_purchase)
+Fair_trade_purchase
+#Creating fake data for each column, including 7 levels - it is a necessary trick because there is a chance that one or more of the statements has a level that wasn’t said by a respondent. 
+FT_3_1 <- c(1,2,3,4,5,6,7)
+FT_3_2 <- c(1,2,3,4,5,6,7) 
+FT_3_3 <- c(1,2,3,4,5,6,7) 
+FT_3_4 <- c(1,2,3,4,5,6,7) 
+FT_3_5 <- c(1,2,3,4,5,6,7) 
+fake <- data.frame(FT_3_1, FT_3_2, FT_3_3, FT_3_4, FT_3_5) 
+
+#Appending the fake dataframe to the real dataframe, and converting all of the variables to factor format.
+Fair_trade_purchase_1 <- rbind(fake, Fair_trade_purchase)
+
+Fair_trade_purchase_1$FT_3_1_f <- as.factor(Fair_trade_purchase_1$FT_3_1) 
+
+Fair_trade_purchase_1$FT_3_2_f <- as.factor(Fair_trade_purchase_1$FT_3_2) 
+
+Fair_trade_purchase_1$FT_3_3_f <- as.factor(Fair_trade_purchase_1$FT_3_3) 
+
+Fair_trade_purchase_1$FT_3_4_f <- as.factor(Fair_trade_purchase_1$FT_3_4) 
+
+Fair_trade_purchase_1$FT_3_5_f <- as.factor(Fair_trade_purchase_1$FT_3_5)  
+
+#Attaching factor levels to each of the Likert statement variables that were just converted to a factor.
+factor_levels <- c("strongly disagree",
+                                      "disagree",
+                                      "somewhat disagree",
+                                      "neutral",
+                                      "somewhat agree",
+                                      "agree", 
+                                      "strongly agree")
+
+levels(Fair_trade_purchase_1$FT_3_1_f) <- factor_levels
+
+levels(Fair_trade_purchase_1$FT_3_2_f) <- factor_levels
+
+levels(Fair_trade_purchase_1$FT_3_3_f) <- factor_levels
+
+levels(Fair_trade_purchase_1$FT_3_4_f) <- factor_levels
+
+levels(Fair_trade_purchase_1$FT_3_5_f) <- factor_levels
+
+#Removing the fake data and the extra columns
+Fair_trade_purchase_2 <- Fair_trade_purchase_1 [-c(1:7), -c(1:5)] 
+
+#Replacing the Likert plot data column headings with the actual Likert statements
+VarHeadings <- c( "I don't like the style","Prices are too high","I don't trust labels","Sustainable clothes is not important for me.","Quality is not good")
+
+names(Fair_trade_purchase_2) <- VarHeadings
+
+colnames(Fair_trade_purchase_2)
+Fair_trade_purchase_3 <- as.data.frame(Fair_trade_purchase_2) 
+
+#Plot the dataset
+library(likert)
+
+p <- likert(Fair_trade_purchase_3) 
+
+a <- likert.bar.plot(p, legend.position = "right", text.size = 2) +
+
+theme(text = element_text(size = rel(3)),axis.text.y = element_text(size = rel(3))) +
+
+theme_update(legend.text = element_text(size = rel(0.5))) +
+
+theme_classic()
+```
+
+```{r fairtrade_4}
+#I buy "fair trade" products because:
+#Creating a table with the needed questions and excluding N/A values from it
+library(HH)
+Fair_trade_clothes <- fair_trade_dataset[, startsWith(names(fair_trade_dataset), "FT_4_")]
+Fair_trade_clothes <- na.omit(Fair_trade_clothes)
+Fair_trade_clothes
+#Creating fake data for each column, including 7 levels - it is a necessary trick because there is a chance that one or more of the statements has a level that wasn’t said by a respondent. 
+FT_4_1 <- c(1,2,3,4,5,6,7)
+FT_4_2 <- c(1,2,3,4,5,6,7) 
+FT_4_3 <- c(1,2,3,4,5,6,7) 
+FT_4_4 <- c(1,2,3,4,5,6,7) 
+fake_2 <- data.frame(FT_4_1, FT_4_2, FT_4_3, FT_4_4) 
+
+#Appending the fake dataframe to the real dataframe, and converting all of the variables to factor format.
+Fair_trade_clothes_1 <- rbind(fake_2, Fair_trade_clothes)
+
+Fair_trade_clothes_1$FT_4_1_f <- as.factor(Fair_trade_clothes_1$FT_4_1) 
+
+Fair_trade_clothes_1$FT_4_2_f <- as.factor(Fair_trade_clothes_1$FT_4_2) 
+
+Fair_trade_clothes_1$FT_4_3_f <- as.factor(Fair_trade_clothes_1$FT_4_3) 
+
+Fair_trade_clothes_1$FT_4_4_f <- as.factor(Fair_trade_clothes_1$FT_4_4) 
+
+#Attaching factor levels to each of the Likert statement variables that were just converted to a factor.
+factor_levels <- c("strongly disagree",
+                                      "disagree",
+                                      "somewhat disagree",
+                                      "neutral",
+                                      "somewhat agree",
+                                      "agree", 
+                                      "strongly agree")
+
+levels(Fair_trade_clothes_1$FT_4_1_f) <- factor_levels
+
+levels(Fair_trade_clothes_1$FT_4_2_f) <- factor_levels
+
+levels(Fair_trade_clothes_1$FT_4_3_f) <- factor_levels
+
+levels(Fair_trade_clothes_1$FT_4_4_f) <- factor_levels
+
+#Removing the fake data and the extra columns
+Fair_trade_clothes_2 <- Fair_trade_clothes_1 [-c(1:7), -c(1:4)] 
+
+#Replacing the Likert plot data column headings with the actual Likert statements
+VarHeadings <- c( "I think they are sustainable","I think they have a better quality","I feel good when buying fair trade products","I think the working conditions during the manufacturing process are better")
+
+names(Fair_trade_clothes_2) <- VarHeadings
+
+colnames(Fair_trade_clothes_2)
+Fair_trade_clothes_3 <- as.data.frame(Fair_trade_clothes_2) 
+
+#Plot the dataset
+library(likert)
+
+b <- likert(Fair_trade_clothes_3) 
+
+c <- likert.bar.plot(b, legend.position = "right", text.size = 2) +
+
+theme(text = element_text(size = rel(3)),axis.text.y = element_text(size = rel(3))) +
+
+theme_update(legend.text = element_text(size = rel(0.5))) +
+
+theme_classic()
+
+plot(c)
+
+```
+
+```{r fairtrade_5}
+#How many percentage points would you be willing to pay more for a "fair trade" jeans compared to a conventional jeans?
+##load data in r
+fair_trade_dataset
+
+## insert data to plot 
+forplot <- fair_trade_dataset[,47]
+forplot <- type.convert(forplot)
+forplot
+
+##plot
+boxplot(forplot, horizontal=T,xlab = "Percentage points", main = "Willingness to pay more for fair trade jeans vs. non fair trade")
+stripchart(forplot,              # Data
+           method = "jitter", # Random noise
+           pch = 19,          # Pch symbols
+           col = 4,           # Color of the symbol
+           horizontal = TRUE,   # horizontal mode
+           add = TRUE)  
+```
+
+```{r fairtrade_6}
+#To what extend do you agree with the following statements?
+#To what extend do you agree with the following statements?
+#Creating a table with the needed questions and excluding N/A values from it
+library(HH)
+Fair_trade_state <- fair_trade_dataset[, startsWith(names(fair_trade_dataset), "FT_6_")]
+Fair_trade_state <- na.omit(Fair_trade_state)
+Fair_trade_state
+#Creating fake data for each column, including 7 levels - it is a necessary trick because there is a chance that one or more of the statements has a level that wasn’t said by a respondent. 
+FT_6_1 <- c(1,2,3,4,5,6,7)
+FT_6_2 <- c(1,2,3,4,5,6,7) 
+FT_6_3 <- c(1,2,3,4,5,6,7) 
+FT_6_4 <- c(1,2,3,4,5,6,7) 
+FT_6_5 <- c(1,2,3,4,5,6,7) 
+fake_3 <- data.frame(FT_6_1, FT_6_2, FT_6_3, FT_6_4, FT_6_5) 
+
+#Appending the fake dataframe to the real dataframe, and converting all of the variables to factor format.
+Fair_trade_state_1 <- rbind(fake_3, Fair_trade_state)
+
+Fair_trade_state_1$FT_6_1_f <- as.factor(Fair_trade_state_1$FT_6_1) 
+
+Fair_trade_state_1$FT_6_2_f <- as.factor(Fair_trade_state_1$FT_6_2) 
+
+Fair_trade_state_1$FT_6_3_f <- as.factor(Fair_trade_state_1$FT_6_3) 
+
+Fair_trade_state_1$FT_6_4_f <- as.factor(Fair_trade_state_1$FT_6_4)
+
+Fair_trade_state_1$FT_6_5_f <- as.factor(Fair_trade_state_1$FT_6_5)
+
+#Attaching factor levels to each of the Likert statement variables that were just converted to a factor.
+factor_levels <- c("strongly disagree",
+                                      "disagree",
+                                      "somewhat disagree",
+                                      "neutral",
+                                      "somewhat agree",
+                                      "agree", 
+                                      "strongly agree")
+
+levels(Fair_trade_state_1$FT_6_1_f) <- factor_levels
+levels(Fair_trade_state_1$FT_6_2_f) <- factor_levels
+levels(Fair_trade_state_1$FT_6_3_f) <- factor_levels
+levels(Fair_trade_state_1$FT_6_4_f) <- factor_levels
+levels(Fair_trade_state_1$FT_6_5_f) <- factor_levels
+
+#Removing the fake data and the extra columns
+Fair_trade_state_2 <- Fair_trade_state_1 [-c(1:7), -c(1:5)] 
+
+#Replacing the Likert plot data column headings with the actual Likert statements
+VarHeadings <- c( "Buying fair trade products has a positive impact on me and my environment.","Buying fair trade products makes me feel like I am a better person.","Fair trade for clothes is as important as for food.","Fair trade products have a better quality than conventional products.", " I always check if there is a fair trade label before buying a product.")
+
+names(Fair_trade_state_2) <- VarHeadings
+
+colnames(Fair_trade_state_2)
+Fair_trade_state_3 <- as.data.frame(Fair_trade_state_2) 
+
+#Plot the dataset
+library(likert)
+
+b <- likert(Fair_trade_state_3) 
+
+c <- likert.bar.plot(b, legend.position = "right", text.size = 2) +
+
+theme(text = element_text(size = rel(3)),axis.text.y = element_text(size = rel(3))) +
+
+theme_update(legend.text = element_text(size = rel(0.5))) +
+
+theme_classic()
+
+plot(c)
+
+```
