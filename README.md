@@ -12,7 +12,6 @@ I use **Python, SQL, R, Power BI, and data storytelling** to turn data into acti
 ![R](https://img.shields.io/badge/R-lightblue)
 ![Power BI](https://img.shields.io/badge/PowerBI-yellow)
 ![Excel](https://img.shields.io/badge/Excel-green)
-![Tableau](https://img.shields.io/badge/Tableau-orange)
 ![SPSS](https://img.shields.io/badge/SPSS-purple)
 
 ---
